@@ -390,18 +390,36 @@ void CGLEngine::DrawQuad(UINT TextureID)
 
 	CalcWindowSize();
 
+	float ww = (float)WndWidth;
+	float wh = (float)WndHeight;
 	float tw = (float)TexWidth;
 	float th = (float)TexHeight;
 	float bw = (float)BufferWidth;
 	float bh = (float)BufferHeight;
 	
-	float l = 0.0f;
-	float r = bw;
-	float t = th - bh;
-	float b = th;
+	//float l = 0.0f;
+	//float r = bw;
+	//float t = th - bh;
+	//float b = th;
 
-	//float ww = (float)WndWidth;
-	//float wh = (float)WndHeight;
+	float wr = ww / wh;
+	float tr = tw / th;
+
+	float scale = 1.0f;
+
+	if(tr > wr){
+		scale = ww / tw; // Scale texture to the wnd width
+	} else if(tr > wr){
+		scale = wh / th; // Scale texture to the wnd height
+	}
+
+	float l = 0.0f;
+	float b = 0.0f;
+	float r = bw * scale;
+	float t = bh * scale;
+
+
+
 
 	//float lo = ((float)ww - tw) / 2.0f;
 	//float to = ((float)wh - th) / 2.0f;
