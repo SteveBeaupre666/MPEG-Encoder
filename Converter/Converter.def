@@ -1,0 +1,4 @@
+EXPORTS
+	_SetHandles		@1
+	_ConvertVideo	@2
+	_AbortJob		@3

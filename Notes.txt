@@ -1,0 +1,15 @@
+fixer le code pour quand on ferme le prog pendant qui encode
+
+fixer le code de render pour qui s'ajuste a grosseur le la fenetre
+
+faire des fonctons pour la gui
+
+faire une fonction pour pouvoir changer le bitrate, pis aligner sur 16 bytes
+
+faire une fonction pour pouvoir changer le bitrate
+
+faire le code pour estimer le temp qui reste par fichier pis par job
+
+ajouter une fonction dans dll pour pre-scanner le fichier (pour avoir le nb de frames)
+
+threader la dll (pas sur)
