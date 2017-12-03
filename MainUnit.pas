@@ -62,7 +62,9 @@ type
 
     StartTime, ElapsedTime, RemainingTime: DWORD;
 
-    function  ChangeExtention(Name, Ext: String): String;
+    function ChangeExtention(Name, Ext: String): String;
+    function FixPath(path: String): String;
+
     procedure OnFileProgress(var Msg: TWMFileProgress); Message WM_UPDATE_FILE_PROGRESS;
     procedure UpdateFileProgress(Frame, NumFrames: Integer);
     procedure UpdateTotalProgress(i, NumFiles: Integer);
@@ -219,7 +221,7 @@ if(ButtonConvert.Caption = 'Convert') then begin
 
     InputFileName  := FilesListBox.Items[i];
     OutputFilePath := EditOutputFolder.Text;
-    OutputFileName := ExtractFilePath(OutputFilePath) + ExtractFileName(ChangeFileExt(InputFileName, '.mpg'));
+    OutputFileName := FixPath(OutputFilePath) + ExtractFileName(ChangeFileExt(InputFileName, '.mpg'));
 
     Self.Caption := 'MPEG Converter' + ' - Encoding "' + InputFileName + '"';
     Application.ProcessMessages;
@@ -270,6 +272,19 @@ if(ExtLen > 0) then begin
 end;
 
 Result := NewName;
+end;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+function TMainForm.FixPath(path: String): String;
+var
+ len: Integer;
+begin
+len := Length(path);
+if(path[len] <> '\') then
+  path := path + '\';
+
+Result := path;
 end;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

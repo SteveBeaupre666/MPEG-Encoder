@@ -13,8 +13,6 @@
 #include "ColorConversion.h"
 //----------------------------------------------------------------------//
 
-//#define NEW_RENDER_CODE
-
 struct OpenGLVersion {
 	int Major;
 	int Minor;
@@ -66,7 +64,7 @@ private:
 	void DeleteTextureBuffer();
 
 	void CalcWindowSize();
-	void Set2DMode(bool ReverseYAxis = false);
+	void Set2DMode();
 	void DrawQuad(UINT TextureID);
 public:
 	BYTE* GetBuffer(){return Buffer;}

@@ -360,7 +360,7 @@ void CGLEngine::CalcWindowSize()
 //-----------------------------------------------------------------------------
 // Setup OpenGL to draw in 2D
 //-----------------------------------------------------------------------------
-void CGLEngine::Set2DMode(bool ReverseYAxis)
+void CGLEngine::Set2DMode()
 {
 	CalcWindowSize();
 	glViewport(0, 0, WndWidth, WndHeight);
@@ -371,25 +371,17 @@ void CGLEngine::Set2DMode(bool ReverseYAxis)
 	float w = (float)WndWidth;
 	float h = (float)WndHeight;
 
-	if(ReverseYAxis)
-		Swap(t, h);
-
 	glLoadIdentity();
-	gluOrtho2D(l, w, t, h);
+	gluOrtho2D(l, w, t, -h);
 	glMatrixMode(GL_MODELVIEW);
 }
 
-#ifndef NEW_RENDER_CODE
 //-----------------------------------------------------------------------------
 // Draw a textured quad on screen
 //-----------------------------------------------------------------------------
 void CGLEngine::DrawQuad(UINT TextureID)
 {
-	if(!TextureID)
-		return;
-
-	CalcWindowSize();
-
+	// Store texture, buffer and window size
 	float ww = (float)WndWidth;
 	float wh = (float)WndHeight;
 	float tw = (float)TexWidth;
@@ -397,109 +389,54 @@ void CGLEngine::DrawQuad(UINT TextureID)
 	float bw = (float)BufferWidth;
 	float bh = (float)BufferHeight;
 	
-	//float l = 0.0f;
-	//float r = bw;
-	//float t = th - bh;
-	//float b = th;
-
+	// Calculate texture and window ratios
 	float wr = ww / wh;
 	float tr = tw / th;
 
 	float scale = 1.0f;
 
+	float x_offset = 0.0f;
+	float y_offset = 0.0f;
+	
+	// Calculate scale and offsets
 	if(tr > wr){
-		scale = ww / tw; // Scale texture to the wnd width
-	} else if(tr > wr){
-		scale = wh / th; // Scale texture to the wnd height
+		// Fit width
+		scale = ww / tw;
+		// Recenter on y axis
+		y_offset = (wh - th) / 2.0f;
+	} else if(tr < wr){
+		// Fit height
+		scale = wh / th;
+		// Recenter on x axis
+		x_offset = (ww - tw) / 2.0f;
 	}
 
-	float l = 0.0f;
-	float b = 0.0f;
-	float r = bw * scale;
-	float t = bh * scale;
+	// Texture coordinates
+	static const float ul = 0.0f;
+	static const float ur = 1.0f;
+	static const float vt = 1.0f;
+	static const float vb = 0.0f;
 
-
-
-
-	//float lo = ((float)ww - tw) / 2.0f;
-	//float to = ((float)wh - th) / 2.0f;
-
-	//l -= lo;
-	//r -= lo;
-	//t += to;
-	//b += to;
-
-	glBindTexture(GL_TEXTURE_2D, TextureID);
-	glBegin(GL_QUADS);
-		glTexCoord2f(0.0f, 1.0f); glVertex2f(l, t);
-		glTexCoord2f(1.0f, 1.0f); glVertex2f(r, t);
-		glTexCoord2f(1.0f, 0.0f); glVertex2f(r, b);
-		glTexCoord2f(0.0f, 0.0f); glVertex2f(l, b);
-	glEnd();
-}
-#else
-//-----------------------------------------------------------------------------
-// Draw a textured quad on screen
-//-----------------------------------------------------------------------------
-void CGLEngine::DrawQuad(UINT TextureID)
-{
-	if(!TextureID)
-		return;
-
-	// jouer avec les uv au lieu des vertex
-
-	float ww = (float)WndWidth;
-	float wh = (float)WndHeight;
-
-	float tw = (float)TexWidth;
-	float th = (float)TexHeight;
-
-	float bw = (float)BufferWidth;
-	float bh = (float)BufferHeight;
-
-	float rw = 1.0f / (tw / bw);
-	float rh = 1.0f / (th / bh);
-
-	float tl = 0.0f;
-	float tb = 0.0f;
-	float tr = 1.0f;
-	float tt = 1.0f;
-
-	float l = 0.0f;
-	float t = 0.0f;
-	//float r = ww;
-	//float b = wh;
-	float r = ww * rw;
-	float b = wh * rh;
+	float l = x_offset;
+	float b = y_offset;
+	float r = x_offset + (bw * scale);
+	float t = y_offset + (bh * scale);
 	
-	float x_offset = 0.0f;
-	float y_offset = -100.0f;
-
-	l += x_offset;
-	r += x_offset;
-
-	t += y_offset;
-	b += y_offset;
-
-	//float d = th;
-	//t -= d;
-	//b -= d;
-
-	glBindTexture(GL_TEXTURE_2D, TextureID);
-
 	glPushMatrix();
+	{
+		glTranslatef(0.0f, -wh, 0.0f);
+		glBindTexture(GL_TEXTURE_2D, TexID);
 
-	glBegin(GL_QUADS);
-		glTexCoord2f(tl, tt); glVertex2f(l, t);
-		glTexCoord2f(tr, tt); glVertex2f(r, t);
-		glTexCoord2f(tr, tb); glVertex2f(r, b);
-		glTexCoord2f(tl, tb); glVertex2f(l, b);
-	glEnd();
-
-	//glTranslatef(0.0f, -b, 0.0f);
+		glBegin(GL_QUADS);
+			glTexCoord2f(ul, vt); glVertex2f(l, t);
+			glTexCoord2f(ur, vt); glVertex2f(r, t);
+			glTexCoord2f(ur, vb); glVertex2f(r, b);
+			glTexCoord2f(ul, vb); glVertex2f(l, b);
+		glEnd();
+	}
 	glPopMatrix();
 }
-#endif
+
 //-----------------------------------------------------------------------------
 // Render without shaders
 //-----------------------------------------------------------------------------

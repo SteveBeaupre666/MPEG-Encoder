@@ -81,20 +81,16 @@
     <ClInclude Include="Converter.h" />
     <ClInclude Include="source\Buffer.h" />
     <ClInclude Include="source\ColorConversion.h" />
-    <ClInclude Include="source\DXEngine.h" />
     <ClInclude Include="source\FileIO.h" />
     <ClInclude Include="source\GLEngine.h" />
-    <ClInclude Include="source\Thread.h" />
     <ClInclude Include="source\Window.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Converter.cpp" />
     <ClCompile Include="source\Buffer.cpp" />
     <ClCompile Include="source\ColorConversion.cpp" />
-    <ClCompile Include="source\DXEngine.cpp" />
     <ClCompile Include="source\FileIO.cpp" />
     <ClCompile Include="source\GLEngine.cpp" />
-    <ClCompile Include="source\Thread.cpp" />
     <ClCompile Include="source\Window.cpp" />
   </ItemGroup>
   <ItemGroup>

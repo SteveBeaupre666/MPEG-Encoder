@@ -1,3 +1,11 @@
+  -Add a scissor test to cut the unused black texture parts.
+  -Calculate the elapsed time remaining for files and job.
+  -Add a function that just dig the file for info.
+  -Thread the convert function (C++ size).
+  -Create a 'Threaded Job object with a FilesList object.
+
+/////////////////////////////////////////////////////////////////
+
 fixer le code pour quand on ferme le prog pendant qui encode
 
 fixer le code de render pour qui s'ajuste a grosseur le la fenetre
