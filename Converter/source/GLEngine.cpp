@@ -337,10 +337,10 @@ void CGLEngine::DrawQuad()
 	
 	if(tex_ratio > wnd_ratio){
 		s = ww / tw;
-		y = (wh - th) / 2.0f;
+		y = (wh - (th * s)) / 2.0f;
 	} else if(tex_ratio < wnd_ratio){
 		s = wh / th;
-		x = (ww - tw) / 2.0f;
+		x = (ww - (tw * s)) / 2.0f;
 	}
 
 	/////////////////////////////////////////////////////////////////
