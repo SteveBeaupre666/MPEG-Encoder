@@ -199,7 +199,7 @@ DWORD EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname, char *error_
 	// Initialize OpenGL
 	bool vsync = false;
 	GLEngine.Initialize(render_wnd, vsync);
-	GLEngine.CreateTexture(dst_width, dst_height);
+	GLEngine.CreateTexture(dst_width, dst_height, 4);
 
 	BYTE *pY = ffmpeg.dst_frame->data[0];
 	BYTE *pU = ffmpeg.dst_frame->data[1];
@@ -243,7 +243,8 @@ DWORD EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname, char *error_
 				
 				sws_scale(ffmpeg.convert_ctx, ffmpeg.src_frame->data, ffmpeg.src_frame->linesize, 0, src_height, ffmpeg.dst_frame->data, ffmpeg.dst_frame->linesize);
 
-				GLEngine.Render(pY, pU, pV);
+				GLEngine.UpdateTexture(pY, pU, pV);
+				GLEngine.Render();
 
 				av_init_packet(ffmpeg.enc_packet);
 				ffmpeg.enc_packet->size = 0;
@@ -288,7 +289,8 @@ DWORD EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname, char *error_
 
 		sws_scale(ffmpeg.convert_ctx, ffmpeg.src_frame->data, ffmpeg.src_frame->linesize, 0, src_height, ffmpeg.dst_frame->data, ffmpeg.dst_frame->linesize);
 
-		GLEngine.Render(pY, pU, pV);
+		GLEngine.UpdateTexture(pY, pU, pV);
+		GLEngine.Render();
 
 		got_output = 0;                                                    /* i think this should NOT be commented... test last */
 		int encoded = avcodec_encode_video2(ffmpeg.enc_codec_ctx, ffmpeg.enc_packet, ffmpeg.dst_frame, &got_output);
@@ -307,7 +309,8 @@ DWORD EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname, char *error_
 	}
 	
 	res = SUCCESS;
-	GLEngine.Render(NULL, NULL, NULL);
+	
+	//GLEngine.Render(NULL, NULL, NULL);
 
 cleanup:
 	GLEngine.Shutdown();

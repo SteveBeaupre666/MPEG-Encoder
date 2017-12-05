@@ -28,6 +28,9 @@
     <ClCompile Include="source\Window.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
+    <ClCompile Include="source\GLExtentions.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Converter.h">
@@ -46,6 +49,12 @@
       <Filter>Utils</Filter>
     </ClInclude>
     <ClInclude Include="source\GLEngine.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="source\GLExtentions.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Rectangle.h">
       <Filter>Utils</Filter>
     </ClInclude>
   </ItemGroup>

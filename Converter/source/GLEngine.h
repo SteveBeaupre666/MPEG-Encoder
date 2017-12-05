@@ -9,16 +9,13 @@
 #include <gl\gl.h>
 #include <gl\glu.h>
 #include <gl\glext.h>
+#include "GLExtentions.h"
 //----------------------------------------------------------------------//
+#include "Rectangle.h"
 #include "ColorConversion.h"
 //----------------------------------------------------------------------//
 
-struct OpenGLVersion {
-	int Major;
-	int Minor;
-};
-
-enum TextureFormat {tfGrayscale, tfRGB, tfRGBA};
+#define USE_NEW_CODE
 
 typedef BOOL (APIENTRY *PFVSYNC)(int);
 
@@ -26,17 +23,13 @@ class CGLEngine {
 public:
 	CGLEngine();
 	~CGLEngine();
-private:
-	PFVSYNC VSync;
-
-	void Swap(float &a, float &b);
-	int  CharToInt(char c);
-	UINT GetNextPowerOfTwo(UINT n);
-private:
+protected:
 	HDC   hDC;
 	HGLRC hRC;
-	HWND  hWnd;
-
+protected:
+	PFVSYNC VSync;
+private:
+	HWND hWnd;
 	UINT WndWidth;
 	UINT WndHeight;
 
@@ -53,37 +46,26 @@ private:
 private:
 	void Reset();
 	bool IsOpenGLInitialized;
-
-	bool CheckExtension(char *extName);
-	bool CheckVersion(OpenGLVersion version_number);
-
 	bool SetupPixelFormatDescriptor(HDC hdc);
 
+	void Set2DMode();
+	void CalcWindowSize();
+	void DrawQuad();
+
+	UINT GetNextPowerOfTwo(UINT n);
 	void CreateTextureBuffer(UINT w, UINT h);
 	void EraseTextureBuffer();
 	void DeleteTextureBuffer();
-
-	void CalcWindowSize();
-	void Set2DMode();
-	void DrawQuad(UINT TextureID);
 public:
-	BYTE* GetBuffer(){return Buffer;}
-	UINT  GetBufferBPP(){return BufferBPP;}
-	UINT  GetBufferWidth(){return BufferWidth;}
-	UINT  GetBufferHeight(){return BufferHeight;}
-	UINT  GetTextureWidth(){return TexWidth;}
-	UINT  GetTextureHeight(){return TexHeight;}
-	UINT  GetTextureFormat(){return TexFormat;}
-public:
-	bool IsEngineInitialized();
+	bool IsInitialized();
 	bool Initialize(HWND hwnd, bool VSync = true);
 	void Shutdown();
-	
-	void CreateTexture(UINT w, UINT h, TextureFormat fmt = tfRGBA);
+
+	void CreateTexture(UINT w, UINT h, UINT bpp);
 	void UpdateTexture(BYTE *pY, BYTE *pU, BYTE *pV);
 	void DeleteTexture();
 
-	void Render(BYTE *pY, BYTE *pU, BYTE *pV);
+	void Render();
 };
 
 

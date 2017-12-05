@@ -28,8 +28,7 @@ void CGLEngine::Reset()
 	WndWidth  = 0;
 	WndHeight = 0;
 
-	Buffer = NULL;
-
+	Buffer       = NULL;
 	BufferBPP    = 0;
 	BufferSize   = 0;
 	BufferWidth  = 0;
@@ -56,71 +55,6 @@ UINT CGLEngine::GetNextPowerOfTwo(UINT n)
 }
 
 //-----------------------------------------------------------------------------
-// Swap two floats values
-//-----------------------------------------------------------------------------
-inline void CGLEngine::Swap(float &a, float &b)
-{
-	float t;
-	t = a;
-	a = b;
-	b = t;
-}
-
-//-----------------------------------------------------------------------------
-// 
-//-----------------------------------------------------------------------------
-int CGLEngine::CharToInt(char c)
-{
-	if(c >= '0' && c <= '9')
-		c -= 0x30;
-
-	return (int)c;
-}
-
-//-----------------------------------------------------------------------------
-// Return true if the given version is greater than current OpenGL version
-//-----------------------------------------------------------------------------
-bool CGLEngine::CheckVersion(OpenGLVersion version_number)
-{
-	char *szVersion = (char*)glGetString(GL_VERSION);
-
-	int MajorVersion = CharToInt(szVersion[0]);
-	int MinorVersion = CharToInt(szVersion[2]);
-
-	if(MajorVersion != version_number.Major)
-		return MajorVersion < version_number.Major;
-
-	if(MajorVersion > version_number.Major){
-		return false;
-	} else if(MajorVersion < version_number.Major){
-		return true;
-	}
-
-	return MinorVersion >= version_number.Minor;
-}
-
-//-----------------------------------------------------------------------------
-// Return true if the requested extention is available
-//-----------------------------------------------------------------------------
-bool CGLEngine::CheckExtension(char *extName)
-{
-	char *extList = (char*) glGetString(GL_EXTENSIONS);
-	if(!extName || !extList)
-		return false;
-
-	while(*extList){
-
-		UINT ExtLen = (int)strcspn(extList, " ");
-		if(strlen(extName) == ExtLen && strncmp(extName, extList, ExtLen) == 0)
-			return true;
-
-		extList += ExtLen + 1;
-	}
-
-	return false;
-}
-
-//-----------------------------------------------------------------------------
 // Set the pixel format
 //-----------------------------------------------------------------------------
 bool CGLEngine::SetupPixelFormatDescriptor(HDC hdc)
@@ -134,7 +68,7 @@ bool CGLEngine::SetupPixelFormatDescriptor(HDC hdc)
     pfd.iPixelType  = PFD_TYPE_RGBA;
     pfd.dwLayerMask = PFD_MAIN_PLANE;
     pfd.cColorBits  = 32;
-    pfd.cDepthBits  = 32;
+    pfd.cDepthBits  = 24; // 32 for no alpha bits
     pfd.cAlphaBits  = 8;
     pfd.nVersion    = 1;
 	
@@ -153,7 +87,7 @@ bool CGLEngine::SetupPixelFormatDescriptor(HDC hdc)
 //-----------------------------------------------------------------------------
 // Return true if OpenGL is initialized
 //-----------------------------------------------------------------------------
-bool CGLEngine::IsEngineInitialized()
+bool CGLEngine::IsInitialized()
 { 
 	return IsOpenGLInitialized;
 }
@@ -163,7 +97,7 @@ bool CGLEngine::IsEngineInitialized()
 //-----------------------------------------------------------------------------
 bool CGLEngine::Initialize(HWND hwnd, bool vsync)
 {
-	if(IsEngineInitialized())
+	if(IsInitialized())
 		return false;
 
 	hWnd = hwnd;
@@ -171,8 +105,7 @@ bool CGLEngine::Initialize(HWND hwnd, bool vsync)
 
 	if(!SetupPixelFormatDescriptor(hDC)){
 		ReleaseDC(hWnd, hDC);
-		hWnd = NULL;
-		hDC  = NULL;
+		Reset();
 		return false;
 	}
 
@@ -218,7 +151,7 @@ bool CGLEngine::Initialize(HWND hwnd, bool vsync)
 //-----------------------------------------------------------------------------
 void CGLEngine::Shutdown()
 {
-	if(!IsEngineInitialized())
+	if(!IsInitialized())
 		return;
 
 	DeleteTexture();
@@ -284,9 +217,9 @@ void CGLEngine::DeleteTextureBuffer()
 //-----------------------------------------------------------------------------
 // Create the main texture
 //-----------------------------------------------------------------------------
-void CGLEngine::CreateTexture(UINT w, UINT h, TextureFormat fmt)
+void CGLEngine::CreateTexture(UINT w, UINT h, UINT bpp)
 {
-	if(!IsEngineInitialized())
+	if(!IsInitialized())
 		return;
 
 	DeleteTexture();
@@ -294,12 +227,19 @@ void CGLEngine::CreateTexture(UINT w, UINT h, TextureFormat fmt)
 	TexWidth  = w;
 	TexHeight = h;
 
-	switch(fmt)
+	switch(bpp)
 	{
-	case tfRGB:       TexFormat = GL_RGB;       break;
-	case tfRGBA:      TexFormat = GL_RGBA;      break;
-	case tfGrayscale: TexFormat = GL_LUMINANCE; break;
+	case 3: TexFormat = GL_RGB;       break;
+	case 4: TexFormat = GL_RGBA;      break;
+	case 1: TexFormat = GL_LUMINANCE; break;
 	}
+
+	if(!TexFormat){
+		Reset();
+		return;
+	}
+
+	CreateTextureBuffer(w, h);
 
 	glGenTextures(1, &TexID);
 	glBindTexture(GL_TEXTURE_2D, TexID);
@@ -307,7 +247,6 @@ void CGLEngine::CreateTexture(UINT w, UINT h, TextureFormat fmt)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	CreateTextureBuffer(w, h);
 	glTexImage2D(GL_TEXTURE_2D, 0, TexFormat, BufferWidth, BufferHeight, 0, TexFormat, GL_UNSIGNED_BYTE, Buffer);
 }
 
@@ -316,7 +255,7 @@ void CGLEngine::CreateTexture(UINT w, UINT h, TextureFormat fmt)
 //-----------------------------------------------------------------------------
 void CGLEngine::UpdateTexture(BYTE *pY, BYTE *pU, BYTE *pV)
 {
-	if(!IsEngineInitialized() || !TexID)
+	if(!IsInitialized() || !TexID)
 		return;
 
 	yuv420p_to_rgb(pY, pU, pV, Buffer, TexWidth, TexHeight, BufferWidth, BufferBPP);
@@ -328,7 +267,7 @@ void CGLEngine::UpdateTexture(BYTE *pY, BYTE *pU, BYTE *pV)
 //-----------------------------------------------------------------------------
 void CGLEngine::DeleteTexture()
 {
-	if(!IsEngineInitialized())
+	if(!IsInitialized())
 		return;
 
 	DeleteTextureBuffer();
@@ -376,56 +315,154 @@ void CGLEngine::Set2DMode()
 	glMatrixMode(GL_MODELVIEW);
 }
 
+#ifdef USE_NEW_CODE
 //-----------------------------------------------------------------------------
 // Draw a textured quad on screen
 //-----------------------------------------------------------------------------
-void CGLEngine::DrawQuad(UINT TextureID)
+void CGLEngine::DrawQuad()
 {
-	// Store texture, buffer and window size
 	float ww = (float)WndWidth;
 	float wh = (float)WndHeight;
 	float tw = (float)TexWidth;
 	float th = (float)TexHeight;
 	float bw = (float)BufferWidth;
 	float bh = (float)BufferHeight;
-	
-	// Calculate texture and window ratios
-	float wr = ww / wh;
-	float tr = tw / th;
 
-	float scale = 1.0f;
+	float wnd_ratio = ww / wh;
+	float tex_ratio = tw / th;
 
-	float x_offset = 0.0f;
-	float y_offset = 0.0f;
+	float s = 1.0f;
+	float x = 0.0f;
+	float y = 0.0f;
 	
-	// Calculate scale and offsets
-	if(tr > wr){
-		// Fit width
-		scale = ww / tw;
-		// Recenter on y axis
-		y_offset = (wh - th) / 2.0f;
-	} else if(tr < wr){
-		// Fit height
-		scale = wh / th;
-		// Recenter on x axis
-		x_offset = (ww - tw) / 2.0f;
+	if(tex_ratio > wnd_ratio){
+		s = ww / tw;
+		y = (wh - th) / 2.0f;
+	} else if(tex_ratio < wnd_ratio){
+		s = wh / th;
+		x = (ww - tw) / 2.0f;
 	}
 
-	// Texture coordinates
+	/////////////////////////////////////////////////////////////////
+
+	CRect<float> UVRect(0.0f, 1.0f, 1.0f, 0.0f);
+	CRect<float> QuadRect(0.0f, 0.0f, bw, bh);
+	CRect<float> ClipRect(0.0f, 0.0f, tw, th);
+
+	QuadRect.Scale(s);
+	ClipRect.Scale(s);
+
+	ClipRect.Translate(x, y);
+	QuadRect.Translate(x, y - wh);
+
+	/////////////////////////////////////////////////////////////////
+
+	float tl,tt,tr,tb;
+	float vl,vt,vr,vb;
+
+	UVRect.GetRect(tl,tb,tr,tt);
+	QuadRect.GetRect(vl,vb,vr,vt);
+	
+	int cx = (int)ClipRect.GetLeft();
+	int cy = WndHeight - (int)(ClipRect.GetHeight() + ClipRect.GetTop());
+	int cw = (int)ClipRect.GetWidth();
+	int ch = (int)ClipRect.GetHeight();
+
+	/////////////////////////////////////////////////////////////////
+
+	glPushMatrix();
+
+		glEnable(GL_SCISSOR_TEST);
+		glScissor(cx, cy, cw, ch);
+
+		glBegin(GL_QUADS);
+			glTexCoord2f(tl, tt); glVertex2f(vl, vt);
+			glTexCoord2f(tr, tt); glVertex2f(vr, vt);
+			glTexCoord2f(tr, tb); glVertex2f(vr, vb);
+			glTexCoord2f(tl, tb); glVertex2f(vl, vb);
+		glEnd();
+
+		glDisable(GL_SCISSOR_TEST);
+
+	glPopMatrix();
+}
+#else
+//-----------------------------------------------------------------------------
+// Draw a textured quad on screen
+//-----------------------------------------------------------------------------
+void CGLEngine::DrawQuad()
+{
 	static const float ul = 0.0f;
 	static const float ur = 1.0f;
 	static const float vt = 1.0f;
 	static const float vb = 0.0f;
 
+	//////////////////////////////////////////////////////////
+
+	float ww = (float)WndWidth;
+	float wh = (float)WndHeight;
+	float tw = (float)TexWidth;
+	float th = (float)TexHeight;
+	float bw = (float)BufferWidth;
+	float bh = (float)BufferHeight;
+
+	float x_offset = 0.0f;
+	float y_offset = 0.0f;
+	float xy_scale = 1.0f;
+	
+	float wr = ww / wh;
+	float tr = tw / th;
+
+	//int clip_l = 0;
+	//int clip_r = 0;
+	//int clip_t = 0;
+	//int clip_b = 0;
+
+	// If the texture and window size don't match...
+	if(tr > wr){
+		// Scale texture width to window size
+		xy_scale = ww / tw;
+		// Move smaller side to center
+		//y_offset = (wh - th) / 2.0f;
+
+		//clip_l = 0;
+		//clip_t = (int)y_offset;
+		//clip_r = WndWidth;
+		//clip_b = WndHeight - (int)y_offset;
+	} else if(tr < wr){
+		// Scale texture height to window size
+		xy_scale = wh / th;
+		// Move smaller side to center
+		//x_offset = (ww - tw) / 2.0f;
+
+		//clip_l = (int)x_offset;
+		//clip_t = 0;
+		//clip_r = WndWidth - (int)x_offset;
+		//clip_b = WndHeight;
+	}
+
+
+	//y_offset -= wh;
+
 	float l = x_offset;
 	float b = y_offset;
-	float r = x_offset + (bw * scale);
-	float t = y_offset + (bh * scale);
+	float r = x_offset + (bw * xy_scale);
+	float t = y_offset + (bh * xy_scale);
+	
+
+	//int cx = clip_l;
+	//int cy = clip_t;
+	//int cw = clip_r - clip_l;
+	//int ch = clip_b - clip_t;
+
+	//glScissor(cx, cy, cw, ch);
+	//glEnable(GL_SCISSOR_TEST);
+
+	glBindTexture(GL_TEXTURE_2D, TexID);
 	
 	glPushMatrix();
-	{
+
 		glTranslatef(0.0f, -wh, 0.0f);
-		glBindTexture(GL_TEXTURE_2D, TexID);
 
 		glBegin(GL_QUADS);
 			glTexCoord2f(ul, vt); glVertex2f(l, t);
@@ -433,29 +470,26 @@ void CGLEngine::DrawQuad(UINT TextureID)
 			glTexCoord2f(ur, vb); glVertex2f(r, b);
 			glTexCoord2f(ul, vb); glVertex2f(l, b);
 		glEnd();
-	}
-	glPopMatrix();
-}
 
+	glPopMatrix();
+
+	//glDisable(GL_SCISSOR_TEST);
+}
+#endif
 //-----------------------------------------------------------------------------
 // Render without shaders
 //-----------------------------------------------------------------------------
-void CGLEngine::Render(BYTE *pY, BYTE *pU, BYTE *pV)
+void CGLEngine::Render()
 {
-	if(!IsEngineInitialized())
+	if(!IsInitialized())
 		return;
 
-	bool have_texture = pY && pU && pV;
-	if(have_texture)
-		UpdateTexture(pY, pU, pV);
-
-	glClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	glColor3f(1.0f, 1.0f, 1.0f);
 
 	Set2DMode();
 	
-	UINT TextureID = have_texture ? TexID : 0;
-	DrawQuad(TextureID);
+	DrawQuad();
 
 	SwapBuffers(hDC);
 }
