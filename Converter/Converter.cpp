@@ -3,7 +3,12 @@
 HWND main_wnd   = NULL;
 HWND render_wnd = NULL;
 
-BOOL CancelJob = FALSE;
+CThread Job;
+JobDataStruct JobData;
+DWORD WINAPI JobThread(void *params);
+
+CBuffer InputFiles;
+CBuffer OutputFiles;
 
 ///////////////////////////////////////////////////
 // Dll entry point...
@@ -31,6 +36,14 @@ void InitDll()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
+
+void ShutDownDll()
+{
+	InputFiles.Free();
+	OutputFiles.Free();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -42,15 +55,96 @@ void EXP_FUNC _SetHandles(HWND hMainWnd, HWND hRenderWnd)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
+void EXP_FUNC _StartJob(int files_count, char *input_files, char *output_files)
+{
+	if(!Job.IsRunning()){
+
+		int in_len  = strlen(input_files);
+		int out_len = strlen(output_files);
+
+		InputFiles.Allocate(in_len+1);
+		OutputFiles.Allocate(out_len+1);
+
+		char *in  = InputFiles.String();
+		char *out = OutputFiles.String();
+
+		memcpy(in,  input_files,  in_len);
+		memcpy(out, output_files, out_len);
+
+		JobData.InputFiles  = in;
+		JobData.OutputFiles = out;
+		JobData.ErrorMsg    = NULL;
+		JobData.NumFiles    = files_count;
+
+		Job.Start(JobThread, &JobData);
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+void EXP_FUNC _CancelJob()
+{
+	if(Job.IsRunning())
+		Job.Abort();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+DWORD WINAPI JobThread(void *params)
+{
+	JobDataStruct *pJobData = (JobDataStruct*)params;
+
+	//av_register_all();
+	//avformat_network_init();
+
+	const int ErrorMsgSize = 1024;
+	char ErrorMsg[ErrorMsgSize];
+
+	int n = pJobData->NumFiles;
+
+	char *in  = pJobData->InputFiles;
+	char *out = pJobData->OutputFiles;
+
+	for(int i = 0; i < n; i++){
+	
+		if(Job.Aborted())
+			break;
+
+		ZeroMemory(ErrorMsg, ErrorMsgSize);
+
+		int in_len  = GetFileNameLen(in);
+		int out_len = GetFileNameLen(out);
+
+		CBuffer InputName(in_len+1);
+		CBuffer OutputName(out_len+1);
+
+		memcpy(InputName.Get(),  &in[1],  in_len);
+		memcpy(OutputName.Get(), &out[1], out_len);
+		
+		in  += in_len  + 3;
+		out += out_len + 3;
+
+		char *input_name  = InputName.String();
+		char *output_name = OutputName.String();
+
+		_ConvertVideo(input_name, output_name, ErrorMsg);
+	}
+
+	PostThreadExitedMsg(Job.Aborted());
+
+	return 0;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
 DWORD EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname, char *error_msg)
 {
-	CancelJob = FALSE;
 	DWORD res = 0;
+
+	CGLEngine GLEngine;
 
 	CBuffer FrameBuffer;
 	CFileIO OutputFile;
-
-	CGLEngine GLEngine;
 
 	ffmpegStruct ffmpeg;
 	ZeroMemory(&ffmpeg, sizeof(ffmpeg));
@@ -227,7 +321,7 @@ DWORD EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname, char *error_
 	while(av_read_frame(ffmpeg.format_ctx, ffmpeg.dec_packet) >= 0){
 		if(ffmpeg.dec_packet->stream_index == video_stream){
 			
-			if(CancelJob){
+			if(Job.Aborted()){
 				sprintf(error_msg, "Job Canceled\n");
 				goto cleanup;
 			}
@@ -272,7 +366,7 @@ DWORD EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname, char *error_
 
 	while(1){
 
-		if(CancelJob){
+		if(Job.Aborted()){
 			sprintf(error_msg, "Job Canceled\n");
 			goto cleanup;
 		}
@@ -319,16 +413,9 @@ cleanup:
 	WriteEndCode(OutputFile);
 
 	// Cleanup everything
-	Cleanup(ffmpeg, FrameBuffer, OutputFile, GLEngine);
+	Cleanup(ffmpeg, FrameBuffer, OutputFile);
 
 	return res;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////
-
-void EXP_FUNC _AbortJob()
-{
-	CancelJob = TRUE;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -343,10 +430,18 @@ void UpdateProgress(int frame, int frames_count)
 
 		switch(IsNumbersValid)
 		{
-		case true:  SendMessage(main_wnd, WM_UPDATE_FILE_PROGRESS, 0, 0);                break;
-		case false: SendMessage(main_wnd, WM_UPDATE_FILE_PROGRESS, frame, frames_count); break;
+		case true:  PostMessage(main_wnd, WM_UPDATE_FILE_PROGRESS, 0, 0);                break;
+		case false: PostMessage(main_wnd, WM_UPDATE_FILE_PROGRESS, frame, frames_count); break;
 		}
 	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+void PostThreadExitedMsg(bool canceled)
+{
+	if(main_wnd)
+		PostMessage(main_wnd, WM_THREAD_TERMINATED, 0, canceled ? 1 : 0);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -417,7 +512,7 @@ void FreeConvertCtx(SwsContext** convert_ctx)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-void Cleanup(ffmpegStruct &ffmpeg, CBuffer &FrameBuffer, CFileIO &OutputFile, CGLEngine &GLEngine)
+void Cleanup(ffmpegStruct &ffmpeg, CBuffer &FrameBuffer, CFileIO &OutputFile)
 {
 	FrameBuffer.Free();
 
@@ -429,5 +524,33 @@ void Cleanup(ffmpegStruct &ffmpeg, CBuffer &FrameBuffer, CFileIO &OutputFile, CG
 	FreeCodecCtx(&ffmpeg.enc_codec_ctx, &ffmpeg.enc_codec, 1);	
 	FreeFormatCtx(&ffmpeg.format_ctx);
 	FreeConvertCtx(&ffmpeg.convert_ctx);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+int GetFileNameLen(char *fname)
+{
+	int i = 0;
+	int len = 0;
+
+	while(1){
+		
+		char c = fname[i++];
+
+		if(c == NULL)
+			break;
+
+		if(c == 0x22){
+			if(len == 0){
+				continue;
+			} else {
+				break;
+			}
+		}
+
+		len++;		
+	}
+
+	return len;
 }
 

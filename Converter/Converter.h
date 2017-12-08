@@ -26,10 +26,13 @@ extern "C" {
 	#include "libavutil/imgutils.h"
 };
 //----------------------------------------------------------------------//
-#define WM_UPDATE_FILE_PROGRESS	WM_USER + 101
-//----------------------------------------------------------------------//
 #define SUCCESS		0
 //#define ERROR_		
+//----------------------------------------------------------------------//
+#define WM_UPDATE_FILE_PROGRESS		WM_USER + 101
+#define WM_THREAD_TERMINATED		WM_USER + 102
+//----------------------------------------------------------------------//
+//#define SINGLE_THREADED
 //----------------------------------------------------------------------//
 
 struct ffmpegStruct {
@@ -51,28 +54,43 @@ struct ffmpegStruct {
 };
 
 //----------------------------------------------------------------------//
+
+struct JobDataStruct {
+	int   NumFiles;
+	char *InputFiles;
+	char *OutputFiles;
+	char *ErrorMsg;
+};
+
+//----------------------------------------------------------------------//
 // Internal Functions
 //----------------------------------------------------------------------//
 void InitDll();
-void ShutDownDll(){}
+void ShutDownDll();
 
 //----------------------------------------------------------------------//
 // Exported Functions
 //----------------------------------------------------------------------//
 void  EXP_FUNC _SetHandles(HWND hMainWnd, HWND hRenderWnd);
+
 DWORD EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname, char *error_msg);
-void  EXP_FUNC _AbortJob();
+
+void EXP_FUNC _StartJob(int files_count, char *input_files, char *output_files);
+void EXP_FUNC _CancelJob();
 
 //----------------------------------------------------------------------//
 // Globals Functions
 //----------------------------------------------------------------------//
 void WriteEndCode(CFileIO &OutputFile);
+
 void UpdateProgress(int frame, int frames_count);
+void PostThreadExitedMsg(bool canceled);
 
 void FreeFrame(AVFrame** frame);
 void FreePacket(AVPacket** packet);
 void FreeConvertCtx(SwsContext** convert_ctx);
 void FreeFormatCtx(AVFormatContext** format_ctx);
 void FreeCodecCtx(AVCodecContext** codec_ctx, AVCodec** codec, bool free_ctx = false);
-void Cleanup(ffmpegStruct &ffmpeg, CBuffer &FrameBuffer, CFileIO &OutputFile, CGLEngine &GLEngine);
+void Cleanup(ffmpegStruct &ffmpeg, CBuffer &FrameBuffer, CFileIO &OutputFile);
 
+int GetFileNameLen(char *fname);

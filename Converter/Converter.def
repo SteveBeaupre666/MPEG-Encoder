@@ -1,4 +1,5 @@
 EXPORTS
 	_SetHandles		@1
 	_ConvertVideo	@2
-	_AbortJob		@3
+	_StartJob		@3	
+	_CancelJob		@4	

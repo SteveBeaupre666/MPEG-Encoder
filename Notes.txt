@@ -21,3 +21,8 @@ faire le code pour estimer le temp qui reste par fichier pis par job
 ajouter une fonction dans dll pour pre-scanner le fichier (pour avoir le nb de frames)
 
 threader la dll (pas sur)
+
+
+
+Time left formula:
+  (avg time per tick * (1 / percent done)

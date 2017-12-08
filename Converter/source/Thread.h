@@ -7,10 +7,10 @@
 #define WAIT_IF_RUNNING   1 // Wait for the other thread to finish before staring a new one
 #define WAIT_FOR_FINISH   2 // Start a new thread and block the calling thread until finish (this one cause the thread handles to be overwriten, rendering further call effective only on the last started thread)
 
-class Thread { 
+class CThread { 
 public:
-	Thread();
-	~Thread(){}
+	CThread();
+	~CThread(){}
 private:
 	DWORD  ThreadID;
 	HANDLE ThreadHandle;

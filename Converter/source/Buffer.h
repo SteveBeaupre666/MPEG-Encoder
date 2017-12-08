@@ -19,7 +19,9 @@ public:
 	void Erase();
 	void Free();
 
-	BYTE* Get();
 	UINT Size();
+
+	BYTE* Get();
+	char* String();
 };
 

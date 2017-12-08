@@ -4,11 +4,13 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Gauges, ExtCtrls, ComCtrls;
+  Dialogs, StdCtrls, Gauges, ExtCtrls, ComCtrls, ProgressTimerUnit;
 
 const
   SUCESS = 0;
+  
   WM_UPDATE_FILE_PROGRESS = WM_USER + 101;
+  WM_THREAD_TERMINATED    = WM_USER + 102;
 
 type
   TWMFileProgress = packed record
@@ -20,7 +22,8 @@ type
 
   TSetHandles   = procedure(hMainWnd, hRenderwnd: HWND); stdcall;
   TConvertVideo = function(input_fname, output_fname, error_msg: PCHAR): DWORD; stdcall;
-  TAbortJob     = procedure(); stdcall;
+  TStartJob     = procedure(files_count: Integer; input_fname, output_fname: PCHAR); stdcall;
+  TCancelJob    = procedure(); stdcall;
 
 type
   TMainForm = class(TForm)
@@ -35,9 +38,10 @@ type
     ButtonConvert: TButton;
     FileProgressGauge: TGauge;
     TotalProgressGauge: TGauge;
-    CheckBoxRenderFrames: TCheckBox;
+    CheckBoxRender: TCheckBox;
     StatusBar: TStatusBar;
     RenderWindow: TPanel;
+    ButtonCancel: TButton;
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure ButtonAddClick(Sender: TObject);
@@ -46,6 +50,7 @@ type
     procedure ButtonBrowseClick(Sender: TObject);
     procedure ButtonConvertClick(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+    procedure ButtonCancelClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -54,18 +59,22 @@ type
 
     SetHandles:   TSetHandles;
     ConvertVideo: TConvertVideo;
-    AbortJob:     TAbortJob;
+    StartJob:     TStartJob;
+    CancelJob:    TCancelJob;
 
-    IsJobRunning:  Boolean;
-    IsJobCanceled: Boolean;
-    //procedure CancelJob();
+    Timer: TProgressTimer;
+    //StartTime: DWORD;
 
-    StartTime, ElapsedTime, RemainingTime: DWORD;
+    function  ChangeExtention(Name, Ext: String): String;
+    function  FixPath(path: String): String;
 
-    function ChangeExtention(Name, Ext: String): String;
-    function FixPath(path: String): String;
+    procedure EnableUI(IsJobDone: Boolean);
 
+    procedure ConvertMultiThreaded();
+
+    procedure OnThreadTerminated(var Msg: TMessage); Message WM_THREAD_TERMINATED;
     procedure OnFileProgress(var Msg: TWMFileProgress); Message WM_UPDATE_FILE_PROGRESS;
+
     procedure UpdateFileProgress(Frame, NumFrames: Integer);
     procedure UpdateTotalProgress(i, NumFiles: Integer);
   end;
@@ -87,32 +96,33 @@ procedure TMainForm.FormCreate(Sender: TObject);
 const
   DllName = 'Converter.dll';
 begin
-FilesListBox.Items.Add('C:\New Programming Folder\Video Processing\Video\Titanic.mkv');
+FilesListBox.Items.Add('C:\New Programming Folder\Video Processing\Video\Test3.mp4');
 
 StatusBar.Panels[0].Text := 'File Progress: N\A';
 StatusBar.Panels[1].Text := 'Total Progress: N\A';
-StatusBar.Panels[2].Text := 'Remaining Time: N\A';
-StatusBar.Panels[3].Text := 'Total remaining Time: N\A';
-StatusBar.Panels[4].Text := '';
+StatusBar.Panels[2].Text := 'Elapsed Time: N\A';
+StatusBar.Panels[3].Text := 'Remaining Time: N\A';
+StatusBar.Panels[4].Text := 'Total remaining Time: N\A';
 
 hDll := LoadLibrary(PCHAR(DllName));
 if(hDll <> 0) then begin
   @SetHandles   := GetProcAddress(hDll, '_SetHandles');
   @ConvertVideo := GetProcAddress(hDll, '_ConvertVideo');
-  @AbortJob     := GetProcAddress(hDll, '_AbortJob');
+  @StartJob     := GetProcAddress(hDll, '_StartJob');
+  @CancelJob    := GetProcAddress(hDll, '_CancelJob');
 end else begin
   ShowMessage(DllName + ' not found.');
   Application.Terminate;
 end;
 
-SetHandles(Self.Handle, RenderWindow.Handle);
+//SetHandles(Self.Handle, RenderWindow.Handle);
 end;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
-CanClose := not IsJobRunning;
+//CanClose := not IsJobRunning;
 end;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -176,77 +186,73 @@ end;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-{procedure TMainForm.CancelJob();
+procedure TMainForm.EnableUI(IsJobDone: Boolean);
 begin
-if(IsJobRunning) then begin
-  AbortJob();
-  IsJobCanceled := True;
-  while(IsJobRunning) do begin
-    Sleep(50);
-    Application.ProcessMessages;
-  end;
+FilesListBox.Enabled     := IsJobDone;
+ButtonAdd.Enabled        := IsJobDone;
+ButtonRemove.Enabled     := IsJobDone;
+ButtonClear.Enabled      := IsJobDone;
+EditOutputFolder.Enabled := IsJobDone;
+ButtonBrowse.Enabled     := IsJobDone;
+CheckBoxRender.Enabled   := IsJobDone;
+ButtonConvert.Enabled    := IsJobDone;
+ButtonCancel.Enabled     := not IsJobDone;
+Application.ProcessMessages;
 end;
-end;}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-procedure TMainForm.ButtonConvertClick(Sender: TObject);
+procedure TMainForm.ConvertMultiThreaded();
 const
- ErrorMsgSize   = 1024;
+ ErrorMsgSize = 1024;
 var
+ //lkjlj: HWND;
  i, FilesCount:  Integer;
  InputFileName:  String;
  OutputFileName: String;
  OutputFilePath: String;
- ErrorMsg:  Array[0..ErrorMsgSize-1] of char;
- pErrorMsg: PCHAR;
+ InputFiles:     String;
+ OutputFiles:    String;
 begin
-pErrorMsg := @ErrorMsg[0];
+EnableUI(False);
 
-if(ButtonConvert.Caption = 'Convert') then begin
+InputFiles  := '';
+OutputFiles := '';
 
-  FilesCount := FilesListBox.Items.Count;
+FilesCount := FilesListBox.Items.Count;
 
-  ButtonConvert.Caption := 'Cancel';
+for i := 0 to FilesCount-1 do begin
 
-  IsJobRunning := True;
-  IsJobCanceled := False;
+  InputFileName  := FilesListBox.Items[i];
+  OutputFilePath := EditOutputFolder.Text;
+  OutputFileName := FixPath(OutputFilePath) + ExtractFileName(ChangeFileExt(InputFileName, '.mpg'));
 
-  for i := 0 to FilesCount-1 do begin
+  InputFiles  := InputFiles  + '"' + InputFileName  + '"';
+  OutputFiles := OutputFiles + '"' + OutputFileName + '"';
 
-    if(IsJobCanceled) then
-      break;
-
-    UpdateTotalProgress(i, FilesCount);
-
-    InputFileName  := FilesListBox.Items[i];
-    OutputFilePath := EditOutputFolder.Text;
-    OutputFileName := FixPath(OutputFilePath) + ExtractFileName(ChangeFileExt(InputFileName, '.mpg'));
-
-    Self.Caption := 'MPEG Converter' + ' - Encoding "' + InputFileName + '"';
-    Application.ProcessMessages;
-
-    ElapsedTime := 0;
-    RemainingTime := 0;
-    StartTime := GetTickCount();
-
-    ZeroMemory(pErrorMsg, ErrorMsgSize);
-    if(ConvertVideo(PCHAR(InputFileName), PCHAR(OutputFileName), pErrorMsg) <> SUCESS) then
-      ShowMessage(pErrorMsg);
-
+  if(i <> FilesCount-1) then begin
+    InputFiles  := InputFiles  + ' ';
+    OutputFiles := OutputFiles + ' ';
   end;
 
-  IsJobRunning := False;
-
-end else begin
-  IsJobCanceled := True;
-  AbortJob();
-  Exit;
 end;
 
-Self.Caption := 'MPEG Converter';
-ButtonConvert.Caption := 'Convert';
-UpdateTotalProgress(0, 0);
+SetHandles(Self.Handle, RenderWindow.Handle);
+StartJob(FilesCount, PCHAR(InputFiles), PCHAR(OutputFiles));
+end;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+procedure TMainForm.ButtonConvertClick(Sender: TObject);
+begin
+ConvertMultiThreaded();
+end;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+procedure TMainForm.ButtonCancelClick(Sender: TObject);
+begin
+CancelJob();
 end;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -291,16 +297,25 @@ end;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-procedure TMainForm.OnFileProgress(var Msg: TWMFileProgress);
-var
- done: Single;
+procedure TMainForm.OnThreadTerminated(var Msg: TMessage);
 begin
-if(Msg.NumFrames > 0) then begin
-  ElapsedTime := GetTickCount() - StartTime;
-  done := Msg.Frame / Msg.NumFrames;
-  RemainingTime := 0;
+EnableUI(True);
+RenderWindow.Refresh();
 end;
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+procedure TMainForm.OnFileProgress(var Msg: TWMFileProgress);
+//var
+// ElapsedTime, ReminingTime, Done, z: Single;
+begin
+//if(Msg.NumFrames > 0) then begin
+  //ElapsedTime := (GetTickCount() - StartTime) / 1000.0;
+  //Done := Msg.Frame / Msg.NumFrames;
+  //ReminingTime := ElapsedTime * (1.0 - Done);
+//end;
+
+//z := ReminingTime;
 UpdateFileProgress(Msg.Frame, Msg.NumFrames);
 end;
 

@@ -85,6 +85,7 @@
     <ClInclude Include="source\GLEngine.h" />
     <ClInclude Include="source\GLExtentions.h" />
     <ClInclude Include="source\Rectangle.h" />
+    <ClInclude Include="source\Thread.h" />
     <ClInclude Include="source\Window.h" />
   </ItemGroup>
   <ItemGroup>
@@ -94,6 +95,7 @@
     <ClCompile Include="source\FileIO.cpp" />
     <ClCompile Include="source\GLEngine.cpp" />
     <ClCompile Include="source\GLExtentions.cpp" />
+    <ClCompile Include="source\Thread.cpp" />
     <ClCompile Include="source\Window.cpp" />
   </ItemGroup>
   <ItemGroup>

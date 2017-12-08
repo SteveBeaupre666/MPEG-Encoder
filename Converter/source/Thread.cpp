@@ -3,7 +3,7 @@
 //-----------------------------------------------------------------------------
 // Constructor...
 //-----------------------------------------------------------------------------
-Thread::Thread()
+CThread::CThread()
 {
 	Initialize();
 }
@@ -11,7 +11,7 @@ Thread::Thread()
 //-----------------------------------------------------------------------------
 // Initialize member variables
 //-----------------------------------------------------------------------------
-void Thread::Initialize()
+void CThread::Initialize()
 {
 	ThreadID     = 0;
 	ThreadHandle = NULL;
@@ -22,7 +22,7 @@ void Thread::Initialize()
 //-----------------------------------------------------------------------------
 // Start a new thread
 //-----------------------------------------------------------------------------
-bool Thread::Start(LPTHREAD_START_ROUTINE lpStartAddress, LPVOID lpParameter, UINT WaitMode)
+bool CThread::Start(LPTHREAD_START_ROUTINE lpStartAddress, LPVOID lpParameter, UINT WaitMode)
 {
 	// Wait on the other thread to finish if asked to
 	if(WaitMode == WAIT_IF_RUNNING)
@@ -52,7 +52,7 @@ bool Thread::Start(LPTHREAD_START_ROUTINE lpStartAddress, LPVOID lpParameter, UI
 //-----------------------------------------------------------------------------
 // Wait for the thread to finish
 //-----------------------------------------------------------------------------
-void Thread::Wait()
+void CThread::Wait()
 {
 	WaitForSingleObject(ThreadHandle, INFINITE);
 }
@@ -60,7 +60,7 @@ void Thread::Wait()
 //-----------------------------------------------------------------------------
 // Set the signal that can (and SHOULD) be used to stop a thread prematurely
 //-----------------------------------------------------------------------------
-void Thread::Abort()
+void CThread::Abort()
 {
 	// This will wait for the read thread to terminate, if running
 	ResetEvent(PauseEvent);
@@ -80,7 +80,7 @@ void Thread::Abort()
 //-----------------------------------------------------------------------------
 // Check if the Abort signal is set
 //-----------------------------------------------------------------------------
-bool Thread::Aborted()
+bool CThread::Aborted()
 {
 	// Return true if the even is set
 	return WaitForSingleObject(StopEvent, 0) == WAIT_OBJECT_0;
@@ -89,7 +89,7 @@ bool Thread::Aborted()
 //-----------------------------------------------------------------------------
 // Check if the thread is still running
 //-----------------------------------------------------------------------------
-bool Thread::IsRunning()
+bool CThread::IsRunning()
 {
 	// Return true if the thread is running
 	return WaitForSingleObject(ThreadHandle, 0) == WAIT_TIMEOUT;
@@ -98,7 +98,7 @@ bool Thread::IsRunning()
 //-----------------------------------------------------------------------------
 // Pause the thread execution
 //-----------------------------------------------------------------------------
-void Thread::Pause()
+void CThread::Pause()
 {
 	if(IsRunning())
 		SetEvent(PauseEvent);
@@ -107,7 +107,7 @@ void Thread::Pause()
 //-----------------------------------------------------------------------------
 // Resume thread execution
 //-----------------------------------------------------------------------------
-void Thread::Resume()
+void CThread::Resume()
 {
 	if(IsRunning())
 		ResetEvent(PauseEvent);
@@ -116,7 +116,7 @@ void Thread::Resume()
 //-----------------------------------------------------------------------------
 // Return true if the thread is paused (and still up)
 //-----------------------------------------------------------------------------
-bool Thread::IsPaused()
+bool CThread::IsPaused()
 {
 	if(!IsRunning())
 		return false;

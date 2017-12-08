@@ -1,6 +1,6 @@
 object MainForm: TMainForm
-  Left = 143
-  Top = 186
+  Left = 78
+  Top = 157
   Width = 1155
   Height = 481
   HorzScrollBar.Visible = False
@@ -119,7 +119,7 @@ object MainForm: TMainForm
   object ButtonConvert: TButton
     Left = 8
     Top = 376
-    Width = 473
+    Width = 257
     Height = 41
     Anchors = [akLeft, akBottom]
     Caption = 'Convert'
@@ -132,7 +132,7 @@ object MainForm: TMainForm
     TabOrder = 7
     OnClick = ButtonConvertClick
   end
-  object CheckBoxRenderFrames: TCheckBox
+  object CheckBoxRender: TCheckBox
     Left = 376
     Top = 304
     Width = 97
@@ -164,5 +164,20 @@ object MainForm: TMainForm
         Width = 200
       end>
     SimplePanel = False
+  end
+  object ButtonCancel: TButton
+    Left = 272
+    Top = 376
+    Width = 209
+    Height = 41
+    Caption = 'Cancel'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -24
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 10
+    OnClick = ButtonCancelClick
   end
 end

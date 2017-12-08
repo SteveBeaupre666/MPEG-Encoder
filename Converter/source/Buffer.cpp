@@ -73,3 +73,8 @@ BYTE* CBuffer::Get()
 	return Buffer;
 }
 
+char* CBuffer::String()
+{
+	return (char*)Buffer;
+}
+
