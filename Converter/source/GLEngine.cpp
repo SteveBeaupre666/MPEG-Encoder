@@ -97,11 +97,12 @@ bool CGLEngine::IsInitialized()
 //-----------------------------------------------------------------------------
 // Initialize OpenGL
 //-----------------------------------------------------------------------------
-bool CGLEngine::Initialize(HWND hwnd, bool vsync)
+bool CGLEngine::Initialize(HWND hwnd, HDC hdc)
 {
 	if(IsInitialized())
 		return false;
 
+	//hDC  = hdc;
 	hWnd = hwnd;
 	hDC  = GetDC(hWnd);
 
@@ -112,7 +113,7 @@ bool CGLEngine::Initialize(HWND hwnd, bool vsync)
 	}
 
 	hRC = wglCreateContext(hDC);
-	wglMakeCurrent(hDC, hRC);	                        
+	BOOL res = wglMakeCurrent(hDC, hRC);	                        
 
 	///////////////////////////////////////////////////////////////////////////////////////////
 	static const float BgCol = 0.0;
@@ -159,12 +160,32 @@ void CGLEngine::Shutdown()
 	DeleteTexture();
 	DeleteTextureBuffer();
 
-	if(hRC){wglDeleteContext(hRC);}
-	if(hDC){ReleaseDC(hWnd, hDC);}
-	//wglMakeCurrent(NULL, NULL);	                        
+	if(hRC){
+		//wglMakeCurrent(NULL, NULL);	                        
+		wglDeleteContext(hRC);
+		hRC = NULL;
+	}
+
+	if(hDC){
+		ReleaseDC(hWnd, hDC);
+		hDC = NULL;
+	}
 	
 	Reset();
 }
+
+//-----------------------------------------------------------------------------
+// 
+//-----------------------------------------------------------------------------
+/*void CGLEngine::MakeCurrentContext()
+{
+	if(!IsInitialized())
+		return;
+
+	BOOL res = FALSE;
+	if(hDC && hRC)
+		res = wglMakeCurrent(hDC, hRC);
+}*/
 
 //-----------------------------------------------------------------------------
 // 

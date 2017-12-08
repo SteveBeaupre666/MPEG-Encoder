@@ -58,8 +58,10 @@ private:
 	void DeleteTextureBuffer();
 public:
 	bool IsInitialized();
-	bool Initialize(HWND hwnd, bool VSync = true);
+	bool Initialize(HWND hwnd, HDC hdc);
 	void Shutdown();
+
+	//void MakeCurrentContext();
 
 	void CreateTexture(UINT w, UINT h, UINT bpp);
 	void UpdateTexture(BYTE *pY, BYTE *pU, BYTE *pV);

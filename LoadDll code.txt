@@ -1,0 +1,58 @@
+function TMainForm.LoadDll(): Integer;
+label
+  next_one, no_error, error;
+const
+  NumFunctions = 7;
+  DllName = 'Converter.dll';
+var
+ res: Integer;
+ fp: Pointer;
+begin
+hDll := LoadLibrary(PCHAR(DllName));
+if(hDll = 0) then begin
+  Result := 0;
+  Exit;
+end;
+
+@SetHandles       := GetProcAddress(hDll, '_SetHandles');
+@ConvertVideo     := GetProcAddress(hDll, '_ConvertVideo');
+@StartJob         := GetProcAddress(hDll, '_StartJob');
+@IsJobRunning     := GetProcAddress(hDll, '_IsJobRunning');
+@CancelJob        := GetProcAddress(hDll, '_CancelJob');
+@InitializeOpenGL := GetProcAddress(hDll, '_InitializeOpenGL');
+@CleanupOpenGL    := GetProcAddress(hDll, '_CleanupOpenGL');
+
+fp := @@SetHandles;
+Result := 1;
+
+// Make sure the functions are not NULL
+asm
+  push eax
+  push ebx
+  push ecx
+
+  mov ebx, fp
+  mov ecx, NumFunctions
+
+next_one:
+  mov eax, [ebx]
+
+  cmp eax, 0
+  jne no_error
+
+  mov [Result], eax
+  jmp error
+
+no_error:
+
+  add ebx, 4
+  dec ecx
+  cmp ecx, 0
+  jne next_one
+
+error:
+  pop ecx
+  pop ebx
+  pop eax
+end;
+end;

@@ -2,6 +2,7 @@
 
 HWND main_wnd   = NULL;
 HWND render_wnd = NULL;
+HDC  render_hdc = NULL;
 
 CThread Job;
 JobDataStruct JobData;
@@ -9,6 +10,11 @@ DWORD WINAPI JobThread(void *params);
 
 CBuffer InputFiles;
 CBuffer OutputFiles;
+
+BOOL Converting = FALSE;
+BOOL AbortConvertion = FALSE;
+
+//CGLEngine GLEngine;
 
 ///////////////////////////////////////////////////
 // Dll entry point...
@@ -41,22 +47,42 @@ void ShutDownDll()
 {
 	InputFiles.Free();
 	OutputFiles.Free();
+
+	//_CleanupOpenGL();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-void EXP_FUNC _SetHandles(HWND hMainWnd, HWND hRenderWnd)
+void EXP_FUNC _SetHandles(HWND hMainWnd, HWND hRenderWnd, HDC hRenderDC)
 {
 	main_wnd   = hMainWnd;
 	render_wnd = hRenderWnd;
+	render_hdc = hRenderDC;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+BOOL EXP_FUNC _InitializeOpenGL(HWND hWnd)
+{
+	//return GLEngine.Initialize(hWnd, false) == true;
+	return FALSE;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+void EXP_FUNC _CleanupOpenGL()
+{
+	//GLEngine.MakeCurrentContext();
+	//GLEngine.Shutdown();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 void EXP_FUNC _StartJob(int files_count, char *input_files, char *output_files)
 {
+	#ifdef MULTI_THREADED
 	if(!Job.IsRunning()){
 
 		int in_len  = strlen(input_files);
@@ -78,24 +104,40 @@ void EXP_FUNC _StartJob(int files_count, char *input_files, char *output_files)
 
 		Job.Start(JobThread, &JobData);
 	}
+	#endif
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+BOOL EXP_FUNC _IsJobRunning()
+{
+	#ifdef MULTI_THREADED
+	return Job.IsRunning();
+	#else
+	return Converting == TRUE;
+	#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 void EXP_FUNC _CancelJob()
 {
+	#ifdef MULTI_THREADED
 	if(Job.IsRunning())
 		Job.Abort();
+	#else
+	AbortConvertion = TRUE;
+	#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 DWORD WINAPI JobThread(void *params)
 {
+	#ifdef MULTI_THREADED
 	JobDataStruct *pJobData = (JobDataStruct*)params;
 
-	//av_register_all();
-	//avformat_network_init();
+	//GLEngine.MakeCurrentContext();
 
 	const int ErrorMsgSize = 1024;
 	char ErrorMsg[ErrorMsgSize];
@@ -131,6 +173,7 @@ DWORD WINAPI JobThread(void *params)
 	}
 
 	PostThreadExitedMsg(Job.Aborted());
+	#endif
 
 	return 0;
 }
@@ -140,6 +183,11 @@ DWORD WINAPI JobThread(void *params)
 DWORD EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname, char *error_msg)
 {
 	DWORD res = 0;
+
+	#ifndef MULTI_THREADED
+	AbortConvertion = FALSE;
+	Converting = TRUE;
+	#endif
 
 	CGLEngine GLEngine;
 
@@ -291,8 +339,8 @@ DWORD EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname, char *error_
 	///////////////////////////////////////////////////////////////////////////////////////
 
 	// Initialize OpenGL
-	bool vsync = false;
-	GLEngine.Initialize(render_wnd, vsync);
+	//bool vsync = false;
+	GLEngine.Initialize(render_wnd, render_hdc);
 	GLEngine.CreateTexture(dst_width, dst_height, 4);
 
 	BYTE *pY = ffmpeg.dst_frame->data[0];
@@ -321,10 +369,18 @@ DWORD EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname, char *error_
 	while(av_read_frame(ffmpeg.format_ctx, ffmpeg.dec_packet) >= 0){
 		if(ffmpeg.dec_packet->stream_index == video_stream){
 			
-			if(Job.Aborted()){
-				sprintf(error_msg, "Job Canceled\n");
-				goto cleanup;
-			}
+			#ifdef MULTI_THREADED
+				if(Job.Aborted()){
+					sprintf(error_msg, "Job Canceled\n");
+					goto cleanup;
+				}
+			#else
+				if(AbortConvertion){
+					sprintf(error_msg, "Job Canceled\n");
+					goto cleanup;
+				}
+			#endif
+
 
 			got_frame = 0;
 			int decoded = avcodec_decode_video2(ffmpeg.dec_codec_ctx, ffmpeg.src_frame, &got_frame, ffmpeg.dec_packet);			
@@ -366,10 +422,17 @@ DWORD EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname, char *error_
 
 	while(1){
 
-		if(Job.Aborted()){
-			sprintf(error_msg, "Job Canceled\n");
-			goto cleanup;
-		}
+		#ifdef MULTI_THREADED
+			if(Job.Aborted()){
+				sprintf(error_msg, "Job Canceled\n");
+				goto cleanup;
+			}
+		#else
+			if(AbortConvertion){
+				sprintf(error_msg, "Job Canceled\n");
+				goto cleanup;
+			}
+		#endif
 
 		got_frame = 0;
 		int decoded = avcodec_decode_video2(ffmpeg.dec_codec_ctx, ffmpeg.src_frame, &got_frame, ffmpeg.dec_packet);
@@ -407,6 +470,7 @@ DWORD EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname, char *error_
 	//GLEngine.Render(NULL, NULL, NULL);
 
 cleanup:
+	//GLEngine.DeleteTexture();
 	GLEngine.Shutdown();
 
 	// Write 32 bits "End code" and close the file...
@@ -414,6 +478,10 @@ cleanup:
 
 	// Cleanup everything
 	Cleanup(ffmpeg, FrameBuffer, OutputFile);
+
+	#ifndef MULTI_THREADED
+	Converting = FALSE;
+	#endif
 
 	return res;
 }
@@ -426,13 +494,14 @@ void UpdateProgress(int frame, int frames_count)
 {
 	if(main_wnd){
 		
-		bool IsNumbersValid = frames_count <= 0 || frame > frames_count;
+		if(frames_count <= 0 || frame > frames_count)
+			frame = frames_count = 0;
 
-		switch(IsNumbersValid)
-		{
-		case true:  PostMessage(main_wnd, WM_UPDATE_FILE_PROGRESS, 0, 0);                break;
-		case false: PostMessage(main_wnd, WM_UPDATE_FILE_PROGRESS, frame, frames_count); break;
-		}
+		#ifdef MULTI_THREADED
+			PostMessage(main_wnd, WM_UPDATE_FILE_PROGRESS, frame, frames_count);
+		#else
+			SendMessage(main_wnd, WM_UPDATE_FILE_PROGRESS, frame, frames_count);
+		#endif
 	}
 }
 
@@ -440,8 +509,10 @@ void UpdateProgress(int frame, int frames_count)
 
 void PostThreadExitedMsg(bool canceled)
 {
+	#ifdef MULTI_THREADED
 	if(main_wnd)
 		PostMessage(main_wnd, WM_THREAD_TERMINATED, 0, canceled ? 1 : 0);
+	#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////

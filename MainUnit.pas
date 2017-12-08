@@ -6,6 +6,8 @@ uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, Gauges, ExtCtrls, ComCtrls, ProgressTimerUnit;
 
+  //{$define MULTI_THREADED}
+
 const
   SUCESS = 0;
   
@@ -13,6 +15,7 @@ const
   WM_THREAD_TERMINATED    = WM_USER + 102;
 
 type
+
   TWMFileProgress = packed record
     Msg:       Cardinal;
     Frame:     Integer;
@@ -20,10 +23,13 @@ type
     Result:    Longint;
   end;
 
-  TSetHandles   = procedure(hMainWnd, hRenderwnd: HWND); stdcall;
-  TConvertVideo = function(input_fname, output_fname, error_msg: PCHAR): DWORD; stdcall;
-  TStartJob     = procedure(files_count: Integer; input_fname, output_fname: PCHAR); stdcall;
-  TCancelJob    = procedure(); stdcall;
+  TSetHandles       = procedure(hMainWnd, hRenderwnd: HWND; hRenderDC: HDC); stdcall;
+  TConvertVideo     = function(input_fname, output_fname, error_msg: PCHAR): DWORD; stdcall;
+  TStartJob         = procedure(files_count: Integer; input_fname, output_fname: PCHAR); stdcall;
+  TIsJobRunning     = function(): BOOL; stdcall;
+  TCancelJob        = procedure(); stdcall;
+  TInitializeOpenGL = function(h: HWND): BOOL; stdcall;
+  TCleanupOpenGL    = procedure(); stdcall;
 
 type
   TMainForm = class(TForm)
@@ -57,13 +63,24 @@ type
     { Public declarations }
     hDll: THandle;
 
-    SetHandles:   TSetHandles;
-    ConvertVideo: TConvertVideo;
-    StartJob:     TStartJob;
-    CancelJob:    TCancelJob;
+    SetHandles:       TSetHandles;
+    ConvertVideo:     TConvertVideo;
+    StartJob:         TStartJob;
+    IsJobRunning:     TIsJobRunning;
+    CancelJob:        TCancelJob;
+    InitializeOpenGL: TInitializeOpenGL;
+    CleanupOpenGL:    TCleanupOpenGL;
+
+    AppDir: String;
+    SettingsFileName: String;
+
+    //RenderWndDC: HDC;
 
     Timer: TProgressTimer;
     //StartTime: DWORD;
+
+    function  GetAppDir(): String;
+    procedure InitStatusBar();
 
     function  ChangeExtention(Name, Ext: String): String;
     function  FixPath(path: String): String;
@@ -71,12 +88,16 @@ type
     procedure EnableUI(IsJobDone: Boolean);
 
     procedure ConvertMultiThreaded();
+    procedure ConvertSingleThreaded();
 
     procedure OnThreadTerminated(var Msg: TMessage); Message WM_THREAD_TERMINATED;
     procedure OnFileProgress(var Msg: TWMFileProgress); Message WM_UPDATE_FILE_PROGRESS;
 
     procedure UpdateFileProgress(Frame, NumFrames: Integer);
     procedure UpdateTotalProgress(i, NumFiles: Integer);
+
+    procedure LoadSettings();
+    procedure SaveSettings();
   end;
 
 var
@@ -94,43 +115,52 @@ uses OpenDirectoryUnit;
 
 procedure TMainForm.FormCreate(Sender: TObject);
 const
-  DllName = 'Converter.dll';
+ DllName = 'Converter.dll';
 begin
-FilesListBox.Items.Add('C:\New Programming Folder\Video Processing\Video\Test3.mp4');
+InitStatusBar();
 
-StatusBar.Panels[0].Text := 'File Progress: N\A';
-StatusBar.Panels[1].Text := 'Total Progress: N\A';
-StatusBar.Panels[2].Text := 'Elapsed Time: N\A';
-StatusBar.Panels[3].Text := 'Remaining Time: N\A';
-StatusBar.Panels[4].Text := 'Total remaining Time: N\A';
+AppDir := GetAppDir();
+SettingsFileName := AppDir + 'Settings.txt';
 
 hDll := LoadLibrary(PCHAR(DllName));
 if(hDll <> 0) then begin
-  @SetHandles   := GetProcAddress(hDll, '_SetHandles');
-  @ConvertVideo := GetProcAddress(hDll, '_ConvertVideo');
-  @StartJob     := GetProcAddress(hDll, '_StartJob');
-  @CancelJob    := GetProcAddress(hDll, '_CancelJob');
+  @SetHandles       := GetProcAddress(hDll, '_SetHandles');
+  @ConvertVideo     := GetProcAddress(hDll, '_ConvertVideo');
+  @StartJob         := GetProcAddress(hDll, '_StartJob');
+  @IsJobRunning     := GetProcAddress(hDll, '_IsJobRunning');
+  @CancelJob        := GetProcAddress(hDll, '_CancelJob');
+  @InitializeOpenGL := GetProcAddress(hDll, '_InitializeOpenGL');
+  @CleanupOpenGL    := GetProcAddress(hDll, '_CleanupOpenGL');
 end else begin
   ShowMessage(DllName + ' not found.');
   Application.Terminate;
 end;
 
-//SetHandles(Self.Handle, RenderWindow.Handle);
+LoadSettings();
+
+//RenderWndDC := GetDC(RenderWindow.Handle);
+SetHandles(Self.Handle, RenderWindow.Handle, 0);
+//InitializeOpenGL(RenderWindow.Handle);
 end;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
-//CanClose := not IsJobRunning;
+CanClose := IsJobRunning() = FALSE;
 end;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 procedure TMainForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
-//CancelJob();
+SaveSettings();
+
+//if(RenderWndDC <> 0) then
+//  ReleaseDC(RenderWindow.Handle, RenderWndDC);
+
 if(hDll <> 0) then begin
+  //CleanupOpenGL();
   FreeLibrary(hDll);
 end;
 end;
@@ -186,6 +216,17 @@ end;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+procedure TMainForm.InitStatusBar();
+begin
+StatusBar.Panels[0].Text := 'File Progress: N\A';
+StatusBar.Panels[1].Text := 'Total Progress: N\A';
+StatusBar.Panels[2].Text := 'Elapsed Time: N\A';
+StatusBar.Panels[3].Text := 'Remaining Time: N\A';
+StatusBar.Panels[4].Text := 'Total remaining Time: N\A';
+end;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 procedure TMainForm.EnableUI(IsJobDone: Boolean);
 begin
 FilesListBox.Enabled     := IsJobDone;
@@ -198,6 +239,50 @@ CheckBoxRender.Enabled   := IsJobDone;
 ButtonConvert.Enabled    := IsJobDone;
 ButtonCancel.Enabled     := not IsJobDone;
 Application.ProcessMessages;
+end;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+procedure TMainForm.ConvertSingleThreaded();
+const
+ ErrorMsgSize = 1024;
+var
+ i, FilesCount:  Integer;
+ InputFileName:  String;
+ OutputFileName: String;
+ OutputFilePath: String;
+ ErrorMsg:  Array [0..ErrorMsgSize-1] of Char;
+ pErrorMsg: PCHAR;
+begin
+pErrorMsg := @ErrorMsg[0];
+
+EnableUI(False);
+
+FilesCount := FilesListBox.Items.Count;
+
+for i := 0 to FilesCount-1 do begin
+
+  if(IsJobRunning()) then
+    break;
+
+  UpdateTotalProgress(i, FilesCount);
+
+  Self.Caption := 'MPEG Converter' + ' - Encoding "' + InputFileName + '"';
+  Application.ProcessMessages;
+  
+  InputFileName  := FilesListBox.Items[i];
+  OutputFilePath := EditOutputFolder.Text;
+  OutputFileName := FixPath(OutputFilePath) + ExtractFileName(ChangeFileExt(InputFileName, '.mpg'));
+
+  ZeroMemory(pErrorMsg, ErrorMsgSize);
+  if(ConvertVideo(PCHAR(InputFileName), PCHAR(OutputFileName), pErrorMsg) <> SUCESS) then
+    ShowMessage(pErrorMsg);
+end;
+
+Self.Caption := 'MPEG Converter';
+UpdateTotalProgress(0, 0);
+//RenderWindow.Refresh();
+EnableUI(True);
 end;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -237,7 +322,8 @@ for i := 0 to FilesCount-1 do begin
 
 end;
 
-SetHandles(Self.Handle, RenderWindow.Handle);
+SetHandles(Self.Handle, RenderWindow.Handle, 0);
+
 StartJob(FilesCount, PCHAR(InputFiles), PCHAR(OutputFiles));
 end;
 
@@ -245,7 +331,11 @@ end;
 
 procedure TMainForm.ButtonConvertClick(Sender: TObject);
 begin
+{$ifdef MULTI_THREADED}
 ConvertMultiThreaded();
+{$else}
+ConvertSingleThreaded();
+{$endif}
 end;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -338,5 +428,73 @@ TotalProgressGauge.MaxValue := NumFiles;
 StatusBar.Panels[1].Text    := 'Total Progress: ' + IntToStr(i) + ' \ ' + IntToStr(NumFiles);
 Application.ProcessMessages;
 end;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+function TMainForm.GetAppDir(): String;
+var
+ dir: String;
+ Len: Integer;
+begin
+GetDir(0, dir);
+Len := Length(dir);
+if(dir[Len] <> '\') then
+  dir := dir + '\';
+Result := dir;
+end;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+procedure TMainForm.LoadSettings();
+var
+ Lst: TStringList;
+ NumItems, i: Integer;
+begin
+Lst := TStringList.Create;
+try
+  if(FileExists(SettingsFileName)) then begin
+    Lst.LoadFromFile(SettingsFileName);
+
+  EditOutputFolder.Text := Lst[0];
+  NumItems := StrToIntDef(Lst[1], 0);
+
+  FilesListBox.Items.Clear;
+  for i := 0 to NumItems-1 do
+    FilesListBox.Items.Add(Lst[i+2]);
+
+  end;
+finally
+  Lst.Free;
+end;
+end;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+procedure TMainForm.SaveSettings();
+var
+ Lst: TStringList;
+ NumItems, i: Integer;
+begin
+Lst := TStringList.Create;
+try
+  NumItems := FilesListBox.Count;
+
+  Lst.Add(EditOutputFolder.Text);
+  Lst.Add(IntToStr(NumItems));
+
+  for i := 0 to NumItems-1 do
+    Lst.Add(FilesListBox.Items.Strings[i]);
+
+  Lst.SaveToFile(SettingsFileName);
+finally
+  Lst.Free;
+end;
+end;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 end.

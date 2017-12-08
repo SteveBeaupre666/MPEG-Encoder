@@ -26,13 +26,12 @@ extern "C" {
 	#include "libavutil/imgutils.h"
 };
 //----------------------------------------------------------------------//
+//#define MULTI_THREADED
+//----------------------------------------------------------------------//
 #define SUCCESS		0
-//#define ERROR_		
 //----------------------------------------------------------------------//
 #define WM_UPDATE_FILE_PROGRESS		WM_USER + 101
 #define WM_THREAD_TERMINATED		WM_USER + 102
-//----------------------------------------------------------------------//
-//#define SINGLE_THREADED
 //----------------------------------------------------------------------//
 
 struct ffmpegStruct {
@@ -71,12 +70,16 @@ void ShutDownDll();
 //----------------------------------------------------------------------//
 // Exported Functions
 //----------------------------------------------------------------------//
-void  EXP_FUNC _SetHandles(HWND hMainWnd, HWND hRenderWnd);
+void  EXP_FUNC _SetHandles(HWND hMainWnd, HWND hRenderWnd, HDC hRenderDC);
 
 DWORD EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname, char *error_msg);
 
 void EXP_FUNC _StartJob(int files_count, char *input_files, char *output_files);
+BOOL EXP_FUNC _IsJobRunning();
 void EXP_FUNC _CancelJob();
+
+BOOL EXP_FUNC _InitializeOpenGL(HWND hWnd);
+void EXP_FUNC _CleanupOpenGL();
 
 //----------------------------------------------------------------------//
 // Globals Functions
