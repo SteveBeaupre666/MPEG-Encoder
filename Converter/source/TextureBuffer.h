@@ -10,13 +10,14 @@ public:
 	~CTextureBuffer();
 private:
 	BYTE *buf;
-	UINT size;
-
+private:
 	UINT BPP;
-	UINT Width;
 	UINT Pitch;
+	UINT Width;
 	UINT Height;
-
+	UINT NumPixels;
+	UINT BufferSize;
+private:
 	void Initialize();
 	UINT GetNextPowerOfTwo(UINT n);
 public:
@@ -24,11 +25,13 @@ public:
 	bool Allocate(UINT w, UINT h, UINT bpp);
 	void Erase();
 	void Free();
-
+public:
 	BYTE* Get(){return buf;}
 	UINT  GetBPP(){return BPP;}
-	UINT  GetWidth(){return Width;}
 	UINT  GetPitch(){return Pitch;}
+	UINT  GetWidth(){return Width;}
 	UINT  GetHeight(){return Height;}
+	UINT  GetNumPixels(){return NumPixels;}
+	UINT  GetBufferSize(){return BufferSize;}
 };
 

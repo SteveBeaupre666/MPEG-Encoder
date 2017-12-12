@@ -10,28 +10,26 @@
 #include "TextureBuffer.h"
 //----------------------------------------------------------------------//
 
-class CTextureObject {
+class CTexture {
 public:
-	CTextureObject();
-	~CTextureObject();
+	CTexture();
+	~CTexture();
 private:
 	void Initialize();
-	UINT GetOpenGLTextureFormat(UINT bpp);
-	CTextureBuffer Buffer;
 private:
 	UINT TexID;
 	UINT Width;
 	UINT Height;
-	UINT Format; // <--- GL_LUMINANCE, GL_RGB or GL_RGBA
+	UINT Format;
 public:
-	UINT GetWidth();
-	UINT GetHeight();
-	UINT GetFormat();
-	UINT GetTexID();
-public:
+	CTextureBuffer Buffer;
+
 	bool Create(UINT w, UINT h, UINT bpp);
-	void Update(BYTE *y, BYTE *u, BYTE *v);
-	void Free();
-public:
-	CTextureBuffer* GetTextureBuffer(){return &Buffer;}
+	void Update(BYTE *Y, BYTE *U, BYTE *V);
+	void Delete();
+
+	UINT GetTexID(){return TexID;}
+	UINT GetWidth(){return Width;}
+	UINT GetHeight(){return Height;}
+	UINT GetFormat(){return Format;}
 };

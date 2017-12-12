@@ -30,30 +30,26 @@ void CGLEngine::Reset()
 	WndWidth  = 0;
 	WndHeight = 0;
 
-	Buffer       = NULL;
-	BufferBPP    = 0;
-	BufferSize   = 0;
-	BufferWidth  = 0;
-	BufferHeight = 0;
-
-	TexID     = 0;
-	TexWidth  = 0;
-	TexHeight = 0;
-    TexFormat = 0;
+	ResetTextureData();
 
 	IsOpenGLInitialized = false;
 }
 
 //-----------------------------------------------------------------------------
-// 
+// Reset texture variables
 //-----------------------------------------------------------------------------
-UINT CGLEngine::GetNextPowerOfTwo(UINT n)
+void CGLEngine::ResetTextureData()
 {
-	UINT power = 1;
-	while(power < n)
-		power <<= 1;
+	TexID     = 0;
+	TexWidth  = 0;
+	TexHeight = 0;
+    TexFormat = 0;
 
-	return power;
+	BufBPP    = 0;
+	BufWidth  = 0;
+	BufHeight = 0;
+
+	buf = NULL;
 }
 
 //-----------------------------------------------------------------------------
@@ -158,7 +154,7 @@ void CGLEngine::Shutdown()
 		return;
 
 	DeleteTexture();
-	DeleteTextureBuffer();
+	TextureBuffer.Free();
 
 	if(hRC){
 		//wglMakeCurrent(NULL, NULL);	                        
@@ -175,103 +171,71 @@ void CGLEngine::Shutdown()
 }
 
 //-----------------------------------------------------------------------------
-// 
+// Return the opengl texture format from the number of bytes per pixels
 //-----------------------------------------------------------------------------
-/*void CGLEngine::MakeCurrentContext()
+UINT CGLEngine::GetTextureFormat(UINT bpp)
 {
-	if(!IsInitialized())
-		return;
-
-	BOOL res = FALSE;
-	if(hDC && hRC)
-		res = wglMakeCurrent(hDC, hRC);
-}*/
-
-//-----------------------------------------------------------------------------
-// 
-//-----------------------------------------------------------------------------
-void CGLEngine::CreateTextureBuffer(UINT w, UINT h)
-{
-	DeleteTextureBuffer();
-
-	BufferBPP = 0;
-	switch(TexFormat)
+	switch(bpp)
 	{
-	case GL_RGB:       BufferBPP = 3; break;
-	case GL_RGBA:      BufferBPP = 4; break;
-	case GL_LUMINANCE: BufferBPP = 1; break;
+	case 1: return GL_LUMINANCE;
+	case 3: return GL_RGB;
+	case 4: return GL_RGBA;
 	}
 
-	BufferWidth  = GetNextPowerOfTwo(w);
-	BufferHeight = GetNextPowerOfTwo(h);
-	BufferSize   = BufferWidth * BufferHeight * BufferBPP;
-
-	if(!Buffer){
-		Buffer = new BYTE[BufferSize];
-		EraseTextureBuffer();
-	}
+	return 0;
 }
 
 //-----------------------------------------------------------------------------
-// 
+// Return true if the number of bytes per pixels is valid
 //-----------------------------------------------------------------------------
-void CGLEngine::EraseTextureBuffer()
+bool CGLEngine::IsTextureFormatValid(UINT bpp)
 {
-	if(Buffer)
-		ZeroMemory(Buffer, BufferSize);
-}
-
-//-----------------------------------------------------------------------------
-// 
-//-----------------------------------------------------------------------------
-void CGLEngine::DeleteTextureBuffer()
-{
-	if(Buffer){
-
-		delete [] Buffer;
-		Buffer = NULL;
-
-		BufferBPP     = 0;
-		BufferSize    = 0;
-		BufferWidth   = 0;
-		BufferHeight  = 0;
-	}
+	return GetTextureFormat(bpp) != 0;
 }
 
 //-----------------------------------------------------------------------------
 // Create the main texture
 //-----------------------------------------------------------------------------
-void CGLEngine::CreateTexture(UINT w, UINT h, UINT bpp)
+bool CGLEngine::CreateTexture(UINT w, UINT h, UINT bpp)
 {
 	if(!IsInitialized())
-		return;
+		return false;
 
 	DeleteTexture();
 
+	if(!IsTextureFormatValid(bpp))
+		return false;
+
+	if(!TextureBuffer.Allocate(w, h, bpp))
+		return false;
+
+	//////////////////////////////////////////////////
+
 	TexWidth  = w;
 	TexHeight = h;
+	TexFormat = GetTextureFormat(bpp);
 
-	switch(bpp)
-	{
-	case 3: TexFormat = GL_RGB;       break;
-	case 4: TexFormat = GL_RGBA;      break;
-	case 1: TexFormat = GL_LUMINANCE; break;
-	}
+	buf       = TextureBuffer.Get();
+	BufBPP    = TextureBuffer.GetBPP();
+	BufWidth  = TextureBuffer.GetWidth();
+	BufHeight = TextureBuffer.GetHeight();
 
-	if(!TexFormat){
-		Reset();
-		return;
-	}
-
-	CreateTextureBuffer(w, h);
+	//////////////////////////////////////////////////
 
 	glGenTextures(1, &TexID);
+	if(!TexID){
+		ResetTextureData();
+		return false;
+	}
+
 	glBindTexture(GL_TEXTURE_2D, TexID);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, TexFormat, BufferWidth, BufferHeight, 0, TexFormat, GL_UNSIGNED_BYTE, Buffer);
+	glTexImage2D(GL_TEXTURE_2D, 0, TexFormat, BufWidth, BufHeight, 0, TexFormat, GL_UNSIGNED_BYTE, buf);
+
+	return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -279,11 +243,11 @@ void CGLEngine::CreateTexture(UINT w, UINT h, UINT bpp)
 //-----------------------------------------------------------------------------
 void CGLEngine::UpdateTexture(BYTE *pY, BYTE *pU, BYTE *pV)
 {
-	if(!IsInitialized() || !TexID)
+	if(!IsInitialized())
 		return;
 
-	yuv420p_to_rgb(pY, pU, pV, Buffer, TexWidth, TexHeight, BufferWidth, BufferBPP);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, BufferWidth, BufferHeight, TexFormat, GL_UNSIGNED_BYTE, Buffer);
+	yuv420p_to_rgb(pY, pU, pV, buf, TexWidth, TexHeight, BufWidth, BufBPP);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, BufWidth, BufHeight, TexFormat, GL_UNSIGNED_BYTE, buf);
 }
 
 //-----------------------------------------------------------------------------
@@ -294,17 +258,12 @@ void CGLEngine::DeleteTexture()
 	if(!IsInitialized())
 		return;
 
-	DeleteTextureBuffer();
+	TextureBuffer.Free();
 
-	if(TexID){
-
+	if(TexID)
 		glDeleteTextures(1, &TexID);
 
-		TexID     = 0;
-		TexWidth  = 0;
-		TexHeight = 0;
-		TexFormat = 0;
-	}
+	ResetTextureData();
 }
 
 //-----------------------------------------------------------------------------
@@ -339,7 +298,6 @@ void CGLEngine::Set2DMode()
 	glMatrixMode(GL_MODELVIEW);
 }
 
-#ifdef USE_NEW_CODE
 //-----------------------------------------------------------------------------
 // Draw a textured quad on screen
 //-----------------------------------------------------------------------------
@@ -349,8 +307,8 @@ void CGLEngine::DrawQuad()
 	float wh = (float)WndHeight;
 	float tw = (float)TexWidth;
 	float th = (float)TexHeight;
-	float bw = (float)BufferWidth;
-	float bh = (float)BufferHeight;
+	float bw = (float)BufWidth;
+	float bh = (float)BufHeight;
 
 	float wnd_ratio = ww / wh;
 	float tex_ratio = tw / th;
@@ -410,96 +368,7 @@ void CGLEngine::DrawQuad()
 
 	glPopMatrix();
 }
-#else
-//-----------------------------------------------------------------------------
-// Draw a textured quad on screen
-//-----------------------------------------------------------------------------
-void CGLEngine::DrawQuad()
-{
-	static const float ul = 0.0f;
-	static const float ur = 1.0f;
-	static const float vt = 1.0f;
-	static const float vb = 0.0f;
 
-	//////////////////////////////////////////////////////////
-
-	float ww = (float)WndWidth;
-	float wh = (float)WndHeight;
-	float tw = (float)TexWidth;
-	float th = (float)TexHeight;
-	float bw = (float)BufferWidth;
-	float bh = (float)BufferHeight;
-
-	float x_offset = 0.0f;
-	float y_offset = 0.0f;
-	float xy_scale = 1.0f;
-	
-	float wr = ww / wh;
-	float tr = tw / th;
-
-	//int clip_l = 0;
-	//int clip_r = 0;
-	//int clip_t = 0;
-	//int clip_b = 0;
-
-	// If the texture and window size don't match...
-	if(tr > wr){
-		// Scale texture width to window size
-		xy_scale = ww / tw;
-		// Move smaller side to center
-		//y_offset = (wh - th) / 2.0f;
-
-		//clip_l = 0;
-		//clip_t = (int)y_offset;
-		//clip_r = WndWidth;
-		//clip_b = WndHeight - (int)y_offset;
-	} else if(tr < wr){
-		// Scale texture height to window size
-		xy_scale = wh / th;
-		// Move smaller side to center
-		//x_offset = (ww - tw) / 2.0f;
-
-		//clip_l = (int)x_offset;
-		//clip_t = 0;
-		//clip_r = WndWidth - (int)x_offset;
-		//clip_b = WndHeight;
-	}
-
-
-	//y_offset -= wh;
-
-	float l = x_offset;
-	float b = y_offset;
-	float r = x_offset + (bw * xy_scale);
-	float t = y_offset + (bh * xy_scale);
-	
-
-	//int cx = clip_l;
-	//int cy = clip_t;
-	//int cw = clip_r - clip_l;
-	//int ch = clip_b - clip_t;
-
-	//glScissor(cx, cy, cw, ch);
-	//glEnable(GL_SCISSOR_TEST);
-
-	glBindTexture(GL_TEXTURE_2D, TexID);
-	
-	glPushMatrix();
-
-		glTranslatef(0.0f, -wh, 0.0f);
-
-		glBegin(GL_QUADS);
-			glTexCoord2f(ul, vt); glVertex2f(l, t);
-			glTexCoord2f(ur, vt); glVertex2f(r, t);
-			glTexCoord2f(ur, vb); glVertex2f(r, b);
-			glTexCoord2f(ul, vb); glVertex2f(l, b);
-		glEnd();
-
-	glPopMatrix();
-
-	//glDisable(GL_SCISSOR_TEST);
-}
-#endif
 //-----------------------------------------------------------------------------
 // Render without shaders
 //-----------------------------------------------------------------------------
@@ -508,11 +377,10 @@ void CGLEngine::Render()
 	if(!IsInitialized())
 		return;
 
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+	glClear(GL_CLEAR_FLAGS);
 	glColor3f(1.0f, 1.0f, 1.0f);
 
 	Set2DMode();
-	
 	DrawQuad();
 
 	SwapBuffers(hDC);

@@ -12,8 +12,13 @@ CTextureBuffer::~CTextureBuffer()
 
 void CTextureBuffer::Initialize()
 {
-
-	buf = NULL;
+	BPP        = 0;
+	Pitch      = 0;
+	Width      = 0;
+	Height     = 0;
+	NumPixels  = 0;
+	BufferSize = 0;
+	buf        = NULL;
 }
 
 UINT CTextureBuffer::GetNextPowerOfTwo(UINT n)
@@ -39,15 +44,14 @@ bool CTextureBuffer::Allocate(UINT w, UINT h, UINT bpp)
 
 	
 	BPP    = bpp;
-
 	Width  = GetNextPowerOfTwo(w);
 	Height = GetNextPowerOfTwo(h);
 
-	Pitch  = Width * BPP;
-	size   = Pitch * BPP;
+	Pitch      = Width * BPP;
+	NumPixels  = Width * Height;
+	BufferSize = Width * Height * BPP;
 
-	buf = new BYTE[size];
-
+	buf = new BYTE[BufferSize];
 	if(!buf){
 		Initialize();
 		return false;
@@ -61,7 +65,7 @@ bool CTextureBuffer::Allocate(UINT w, UINT h, UINT bpp)
 void CTextureBuffer::Erase()
 {
 	if(IsAllocated())
-		ZeroMemory(buf, size);
+		ZeroMemory(buf, BufferSize);
 }
 
 void CTextureBuffer::Free()

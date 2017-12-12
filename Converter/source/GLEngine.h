@@ -12,12 +12,13 @@
 #include "GLExtentions.h"
 //----------------------------------------------------------------------//
 #include "Rectangle.h"
+#include "TextureBuffer.h"
 #include "ColorConversion.h"
 //----------------------------------------------------------------------//
 
-#define USE_NEW_CODE
-
 typedef BOOL (APIENTRY *PFVSYNC)(int);
+
+#define GL_CLEAR_FLAGS	(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
 
 class CGLEngine {
 public:
@@ -38,32 +39,31 @@ private:
 	UINT TexHeight;
 	UINT TexFormat;
 
-	BYTE *Buffer;
-	UINT BufferBPP;
-	UINT BufferSize;
-	UINT BufferWidth;
-	UINT BufferHeight;
+	BYTE *buf;
+	UINT BufBPP;
+	UINT BufWidth;
+	UINT BufHeight;
+
+	CTextureBuffer TextureBuffer;
 private:
 	void Reset();
+	void ResetTextureData();
 	bool IsOpenGLInitialized;
 	bool SetupPixelFormatDescriptor(HDC hdc);
 
-	void Set2DMode();
 	void CalcWindowSize();
-	void DrawQuad();
+	
+	UINT GetTextureFormat(UINT bpp);
+	bool IsTextureFormatValid(UINT bpp);
 
-	UINT GetNextPowerOfTwo(UINT n);
-	void CreateTextureBuffer(UINT w, UINT h);
-	void EraseTextureBuffer();
-	void DeleteTextureBuffer();
+	void Set2DMode();
+	void DrawQuad();
 public:
 	bool IsInitialized();
 	bool Initialize(HWND hwnd, HDC hdc);
 	void Shutdown();
 
-	//void MakeCurrentContext();
-
-	void CreateTexture(UINT w, UINT h, UINT bpp);
+	bool CreateTexture(UINT w, UINT h, UINT bpp);
 	void UpdateTexture(BYTE *pY, BYTE *pU, BYTE *pV);
 	void DeleteTexture();
 

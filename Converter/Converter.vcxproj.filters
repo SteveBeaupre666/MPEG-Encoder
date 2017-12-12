@@ -34,6 +34,15 @@
     <ClCompile Include="source\Thread.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
+    <ClCompile Include="source\TextureBuffer.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Decoder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Encoder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Converter.h">
@@ -62,6 +71,15 @@
     </ClInclude>
     <ClInclude Include="source\Thread.h">
       <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="source\TextureBuffer.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Decoder.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Encoder.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

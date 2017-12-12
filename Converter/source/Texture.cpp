@@ -1,16 +1,16 @@
 #include "Texture.h"
 
-CTextureObject::CTextureObject()
+CTexture::CTexture()
 {
 	Initialize();
 }
 
-CTextureObject::~CTextureObject()
+CTexture::~CTexture()
 {
-	Free();
+	Delete();
 }
 
-void CTextureObject::Initialize()
+void CTexture::Initialize()
 {
 	TexID  = 0;
 	Width  = 0;
@@ -18,48 +18,38 @@ void CTextureObject::Initialize()
 	Format = 0;
 }
 
-UINT CTextureObject::GetOpenGLTextureFormat(UINT bpp)
+bool CTexture::Create(UINT w, UINT h, UINT bpp)
 {
-	switch(bpp)
-	{
-	case 1: return GL_LUMINANCE;
-	case 3: return GL_RGB;
-	case 4: return GL_RGBA;
-	}
-	return 0;
-}
+	if(!Buffer.Allocate(w, h, bpp))
+		return false;
 
-bool CTextureObject::Create(UINT w, UINT h, UINT bpp)
-{
-	// Create the texture object
 	glGenTextures(1, &TexID);
+	if(!TexID)
+		return false;
+		
 	glBindTexture(GL_TEXTURE_2D, TexID);
 
-	// Set filters mode
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	// Allocate the texture buffer
-	Buffer.Allocate(w, h, bpp);
+	glTexImage2D(GL_TEXTURE_2D, 0, Format, Buffer.GetWidth(), Buffer.GetHeight(), 0, Format, GL_UNSIGNED_BYTE, Buffer.Get());
 
-	// Fill the texture
-	glTexImage2D(GL_TEXTURE_2D, 0, TexFormat, Buffer.GetWidth(), Buffer.GetHeight(), 0, TexFormat, GL_UNSIGNED_BYTE, Buffer.Get());
+	return true;
 }
 
-void CTextureObject::Update(BYTE *y, BYTE *u, BYTE *v)
+void CTexture::Update(BYTE *Y, BYTE *U, BYTE *V)
 {
 	//yuv420p_to_rgb(pY, pU, pV, Buffer, TexWidth, TexHeight, BufferWidth, BufferBPP);
 	
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, BufferWidth, BufferHeight, TexFormat, GL_UNSIGNED_BYTE, Buffer);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, Buffer.GetWidth(), Buffer.GetHeight(), Format, GL_UNSIGNED_BYTE, Buffer.Get());
 }
 
-void CTextureObject::Free()
+void CTexture::Delete()
 {
-	//DeleteTextureBuffer();
-
 	if(TexID > 0)
 		glDeleteTextures(1, &TexID);
 
+	Buffer.Free();
 	Initialize();
 }
 

@@ -81,10 +81,13 @@
     <ClInclude Include="Converter.h" />
     <ClInclude Include="source\Buffer.h" />
     <ClInclude Include="source\ColorConversion.h" />
+    <ClInclude Include="source\Decoder.h" />
+    <ClInclude Include="source\Encoder.h" />
     <ClInclude Include="source\FileIO.h" />
     <ClInclude Include="source\GLEngine.h" />
     <ClInclude Include="source\GLExtentions.h" />
     <ClInclude Include="source\Rectangle.h" />
+    <ClInclude Include="source\TextureBuffer.h" />
     <ClInclude Include="source\Thread.h" />
     <ClInclude Include="source\Window.h" />
   </ItemGroup>
@@ -92,9 +95,12 @@
     <ClCompile Include="Converter.cpp" />
     <ClCompile Include="source\Buffer.cpp" />
     <ClCompile Include="source\ColorConversion.cpp" />
+    <ClCompile Include="source\Decoder.cpp" />
+    <ClCompile Include="source\Encoder.cpp" />
     <ClCompile Include="source\FileIO.cpp" />
     <ClCompile Include="source\GLEngine.cpp" />
     <ClCompile Include="source\GLExtentions.cpp" />
+    <ClCompile Include="source\TextureBuffer.cpp" />
     <ClCompile Include="source\Thread.cpp" />
     <ClCompile Include="source\Window.cpp" />
   </ItemGroup>

@@ -84,6 +84,7 @@ void EXP_FUNC _StartJob(int files_count, char *input_files, char *output_files)
 {
 	#ifdef MULTI_THREADED
 	if(!Job.IsRunning()){
+		wglMakeCurrent(NULL, NULL);
 
 		int in_len  = strlen(input_files);
 		int out_len = strlen(output_files);
@@ -137,6 +138,7 @@ DWORD WINAPI JobThread(void *params)
 	#ifdef MULTI_THREADED
 	JobDataStruct *pJobData = (JobDataStruct*)params;
 
+	wglMakeCurrent(NULL, NULL);
 	//GLEngine.MakeCurrentContext();
 
 	const int ErrorMsgSize = 1024;
