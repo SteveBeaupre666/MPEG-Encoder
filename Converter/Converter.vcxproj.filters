@@ -1,90 +1,102 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Source Files">
+    <Filter Include="Dll Files">
+      <UniqueIdentifier>{a9d3b3aa-d96c-4d16-88df-d77968af3496}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Master Files">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="Utils">
+    <Filter Include="Tools">
       <UniqueIdentifier>{36114a90-f915-46ec-9548-bc6afc09e7fe}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="OpenGL">
+      <UniqueIdentifier>{497aaa11-9c57-4fde-887b-196f383f5335}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Converter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="source\Buffer.cpp">
-      <Filter>Utils</Filter>
+      <Filter>Tools</Filter>
     </ClCompile>
     <ClCompile Include="source\FileIO.cpp">
-      <Filter>Utils</Filter>
-    </ClCompile>
-    <ClCompile Include="source\ColorConversion.cpp">
-      <Filter>Utils</Filter>
-    </ClCompile>
-    <ClCompile Include="source\GLEngine.cpp">
-      <Filter>Utils</Filter>
+      <Filter>Tools</Filter>
     </ClCompile>
     <ClCompile Include="source\Window.cpp">
-      <Filter>Utils</Filter>
-    </ClCompile>
-    <ClCompile Include="source\GLExtentions.cpp">
-      <Filter>Utils</Filter>
+      <Filter>Tools</Filter>
     </ClCompile>
     <ClCompile Include="source\Thread.cpp">
-      <Filter>Utils</Filter>
-    </ClCompile>
-    <ClCompile Include="source\TextureBuffer.cpp">
-      <Filter>Utils</Filter>
+      <Filter>Tools</Filter>
     </ClCompile>
     <ClCompile Include="source\Decoder.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Master Files</Filter>
     </ClCompile>
     <ClCompile Include="source\Encoder.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Master Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ConverterDll.cpp">
+      <Filter>Dll Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\ColorConversion.cpp">
+      <Filter>OpenGL</Filter>
+    </ClCompile>
+    <ClCompile Include="source\GLEngine.cpp">
+      <Filter>OpenGL</Filter>
+    </ClCompile>
+    <ClCompile Include="source\GLExtentions.cpp">
+      <Filter>OpenGL</Filter>
+    </ClCompile>
+    <ClCompile Include="source\TextureBuffer.cpp">
+      <Filter>OpenGL</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Converter.cpp">
+      <Filter>Master Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Converter.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="source\Buffer.h">
-      <Filter>Utils</Filter>
+      <Filter>Tools</Filter>
     </ClInclude>
     <ClInclude Include="source\FileIO.h">
-      <Filter>Utils</Filter>
+      <Filter>Tools</Filter>
     </ClInclude>
     <ClInclude Include="source\Window.h">
-      <Filter>Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="source\ColorConversion.h">
-      <Filter>Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="source\GLEngine.h">
-      <Filter>Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="source\GLExtentions.h">
-      <Filter>Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="source\Rectangle.h">
-      <Filter>Utils</Filter>
+      <Filter>Tools</Filter>
     </ClInclude>
     <ClInclude Include="source\Thread.h">
-      <Filter>Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="source\TextureBuffer.h">
-      <Filter>Utils</Filter>
+      <Filter>Tools</Filter>
     </ClInclude>
     <ClInclude Include="source\Decoder.h">
-      <Filter>Source Files</Filter>
+      <Filter>Master Files</Filter>
     </ClInclude>
     <ClInclude Include="source\Encoder.h">
-      <Filter>Source Files</Filter>
+      <Filter>Master Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ConverterDll.h">
+      <Filter>Dll Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\ColorConversion.h">
+      <Filter>OpenGL</Filter>
+    </ClInclude>
+    <ClInclude Include="source\GLEngine.h">
+      <Filter>OpenGL</Filter>
+    </ClInclude>
+    <ClInclude Include="source\GLExtentions.h">
+      <Filter>OpenGL</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Rectangle.h">
+      <Filter>OpenGL</Filter>
+    </ClInclude>
+    <ClInclude Include="source\TextureBuffer.h">
+      <Filter>OpenGL</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Converter.h">
+      <Filter>Master Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Converter.def">
-      <Filter>Source Files</Filter>
+    <None Include="ConverterDll.def">
+      <Filter>Dll Files</Filter>
     </None>
   </ItemGroup>
 </Project>

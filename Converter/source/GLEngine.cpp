@@ -93,7 +93,7 @@ bool CGLEngine::IsInitialized()
 //-----------------------------------------------------------------------------
 // Initialize OpenGL
 //-----------------------------------------------------------------------------
-bool CGLEngine::Initialize(HWND hwnd, HDC hdc)
+bool CGLEngine::Initialize(HWND hwnd)
 {
 	if(IsInitialized())
 		return false;

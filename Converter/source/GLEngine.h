@@ -60,7 +60,7 @@ private:
 	void DrawQuad();
 public:
 	bool IsInitialized();
-	bool Initialize(HWND hwnd, HDC hdc);
+	bool Initialize(HWND hwnd);
 	void Shutdown();
 
 	bool CreateTexture(UINT w, UINT h, UINT bpp);

@@ -7,6 +7,21 @@
 #include "FileIO.h"
 //----------------------------------------------------------------------//
 
+struct CEncoderSettings
+{	
+	int FrameWidth;
+	int FrameHeight;
+	AVPixelFormat PixelFormat;
+	
+	int Bitrate;
+	AVRational Framerate;
+
+	int GopSize;
+	int Max_B_Frames;
+};
+
+//----------------------------------------------------------------------//
+
 class CEncoder {
 public:
 	CEncoder();
@@ -16,11 +31,10 @@ private:
     AVPacket        *packet; 
     AVCodecContext  *codec_ctx;
 private:
-	AVFrame* frame;
-	AVPixelFormat format;
-
-	int width;
-	int height;
+	int frame_width;
+	int frame_height;
+	
+	AVPixelFormat pixel_format;
 
 	int encoded;
 	int got_output;
@@ -31,23 +45,22 @@ private:
 	void Cleanup();
 public:
 	bool CreateOutputFile(char *fname);
-	void CloseOutputFile();
 
 	bool AllocCodecContext();
-	bool OpenCodec();
-
 	bool FindEncoder();
-	void SetupEncoder(int w, int h, int bitrate, AVRational framerate, AVPixelFormat pix_fmt, AVFrame* frm);
+
+	void SetupEncoder(CEncoderSettings *pSettings);
+	bool OpenCodec();
 
 	bool AllocPacket();
 	void InitPacket();
 	void FreePacket();
 
 	bool WriteFrame();
-	bool WriteEndCode();
 public:
-	bool InitEncoder(char *fname, int w, int h, int bitrate, AVRational framerate, AVPixelFormat pix_fmt, AVFrame* frm);
-	bool EncodeFrame();
+	bool InitEncoder(char *fname, CEncoderSettings *pSettings);
+	bool EncodeFrame(AVFrame* frame);
+	bool WriteEndCode();
 	void CloseEncoder();
 };
 

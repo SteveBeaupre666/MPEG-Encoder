@@ -12,6 +12,9 @@ CDecoder::~CDecoder()
 
 void CDecoder::Reset()
 {
+	pEncoder     = NULL;
+	pGLEngine    = NULL;
+
     packet       = NULL; 
 	src_frame    = NULL;
     dst_frame    = NULL;
@@ -45,13 +48,13 @@ void CDecoder::Reset()
 	src_format   = AV_PIX_FMT_NONE;
 	dst_format   = AV_PIX_FMT_NONE;
 
-	video_stream = INVALID_STREAM;
-			     
+	video_stream = NULL;
+	video_stream_indx = INVALID_STREAM;		     
 }
 
 void CDecoder::Cleanup()
 {
-	CloseInputFile();
+	pGLEngine->Shutdown();
 
 	FrameBuffer.Free();
 
@@ -78,13 +81,7 @@ void CDecoder::Cleanup()
 
 bool CDecoder::OpenInputFile(char *fname)
 {
-	return avformat_open_input(&format_ctx, fname, NULL, NULL) != NULL;
-}
-
-void CDecoder::CloseInputFile()
-{
-	if(format_ctx != NULL)
-		avformat_close_input(&format_ctx);
+	return avformat_open_input(&format_ctx, fname, NULL, NULL) == 0;
 }
 
 bool CDecoder::AllocFormatContext()
@@ -106,11 +103,12 @@ bool CDecoder::FindStreamInfo()
 
 bool CDecoder::FindVideoStream()
 {
-	video_stream = INVALID_STREAM;
+	video_stream_indx = INVALID_STREAM;
 
 	for(UINT i = 0; i < format_ctx->nb_streams; i++){
 		if(format_ctx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO){
-			video_stream = (int)i;
+			video_stream_indx = (int)i;
+			video_stream = format_ctx->streams[i];
 			return true;
 		}
 	}
@@ -120,10 +118,13 @@ bool CDecoder::FindVideoStream()
 
 bool CDecoder::FindDecoder()
 {
-	if(video_stream < 0)
+	if(video_stream_indx < 0)
 		return false;
 
-	codec_ctx = format_ctx->streams[video_stream]->codec;
+	int i = video_stream_indx;
+	video_stream = format_ctx->streams[i];
+
+	codec_ctx = video_stream->codec;
 	if(codec_ctx == NULL)
 		return false;
 
@@ -139,10 +140,18 @@ bool CDecoder::OpenCodec()
     return avcodec_open2(codec_ctx, codec, NULL) >= 0;
 }
 
+int CDecoder::GetFramesCount()
+{
+	return (int)video_stream->nb_frames;
+}
+
 void CDecoder::SetupDecoder()
 {
 	src_width  = codec_ctx->width;
 	src_height = codec_ctx->height;
+
+	src_format = codec_ctx->pix_fmt;
+	dst_format = AV_PIX_FMT_YUV420P;
 
 	dst_width  = src_width;
 	dst_height = src_height;
@@ -163,15 +172,6 @@ void CDecoder::SetupDecoder()
 	y_size = num_pixels;
 	u_size = num_pixels / 4;
 	v_size = num_pixels / 4;
-
-	pY = dst_frame->data[0];
-	pU = dst_frame->data[1];
-	pV = dst_frame->data[2];
-
-	src_format = codec_ctx->pix_fmt;
-	dst_format = AV_PIX_FMT_YUV420P;
-	
-	frames_count = (int)format_ctx->streams[video_stream]->nb_frames;
 }
 
 bool CDecoder::AllocFrames()
@@ -198,6 +198,10 @@ bool CDecoder::AllocFrameBuffer()
 void CDecoder::SetupFrameBuffer()
 {
 	av_image_fill_arrays(dst_frame->data, dst_frame->linesize, FrameBuffer.Get(), dst_format, dst_width, dst_height, 1);
+	
+	pY = dst_frame->data[0];
+	pU = dst_frame->data[1];
+	pV = dst_frame->data[2];
 }
 
 void CDecoder::InitPacket()
@@ -219,10 +223,10 @@ bool CDecoder::ReadFrame()
 
 bool CDecoder::IsVideoStream()
 {
-	return packet->stream_index == video_stream;
+	return packet->stream_index == video_stream_indx;
 }
 
-bool CDecoder::DecodeVideo()
+bool CDecoder::DecodeChunk()
 {
 	got_frame = 0;
 	decoded = avcodec_decode_video2(codec_ctx, src_frame, &got_frame, packet);			
@@ -235,16 +239,59 @@ void CDecoder::ScaleFrame()
 	sws_scale(convert_ctx, src_frame->data, src_frame->linesize, 0, src_height, dst_frame->data, dst_frame->linesize);
 }
 
-void CDecoder::DecodeFrame()
+void CDecoder::RenderFrame()
 {
-	frame++;
-	ScaleFrame();
-
-	OnFrameDecoded(frame, packet, dst_frame, pY, pU, pV);
+	if(pGLEngine){
+		pGLEngine->UpdateTexture(pY, pU, pV);
+		pGLEngine->Render();
+	}
 }
 
-bool CDecoder::InitDecoder(char *fname)
+void CDecoder::ProcessFrame()
 {
+	frame++;
+
+	ScaleFrame();
+	RenderFrame();
+
+	if(pEncoder)
+		pEncoder->EncodeFrame(dst_frame);
+}
+
+int CDecoder::GetFrameWidth()
+{
+	return dst_width;
+}
+
+int CDecoder::GetFrameHeight()
+{
+	return dst_height;
+}
+
+AVPixelFormat CDecoder::GetPixelFormat()
+{
+	return dst_format;
+}
+
+bool CDecoder::InitOpenGL()
+{	
+	if(!pGLEngine)
+		return false;
+
+	if(!pGLEngine->Initialize(render_wnd))
+		return false;
+
+	if(!pGLEngine->CreateTexture(dst_width, dst_height, 4))
+		return false;
+
+	return true;
+}
+
+bool CDecoder::InitDecoder(char *fname, CEncoder *encoder, CGLEngine *engine)
+{
+	pEncoder  = encoder;
+	pGLEngine = engine;
+
 	if(!AllocFormatContext())
 		return false;
 
@@ -278,15 +325,15 @@ bool CDecoder::InitDecoder(char *fname)
 
 	GetConvertContext();
 
+	if(!InitOpenGL())
+		return false;
+
 	return true;
 }
 
-bool CDecoder::Decode(char *fname)
+bool CDecoder::DecodeVideo()
 {
 	bool res = false;
-
-	if(!InitDecoder(fname))
-		goto cleanup;
 
 	InitPacket();
 
@@ -294,14 +341,14 @@ bool CDecoder::Decode(char *fname)
 
 		if(IsVideoStream()){
 
-			//if(Abort)
-			//	goto cleanup;
+			if(Abort)
+				goto cleanup;
 
-			if(!DecodeVideo())
+			if(!DecodeChunk())
 				goto cleanup;
 
 			if(got_frame)
-				DecodeFrame();
+				ProcessFrame();
 		}
 		
 		FreePacket();
@@ -309,16 +356,16 @@ bool CDecoder::Decode(char *fname)
 
 	while(1){
 
-		//if(Abort)
-		//	goto cleanup;
+		if(Abort)
+			goto cleanup;
 
-		if(!DecodeVideo())
+		if(!DecodeChunk())
 			goto cleanup;
 
 		if(!got_frame)
 			break;
 
-		DecodeFrame();
+		ProcessFrame();
 
 		FreePacket();
 	}
@@ -327,7 +374,15 @@ bool CDecoder::Decode(char *fname)
 
 cleanup:
 
-	Cleanup();
+	if(pEncoder)
+		pEncoder->WriteEndCode();
+
+	CloseDecoder();
 
 	return res;
+}
+
+void CDecoder::CloseDecoder()
+{
+	Cleanup();
 }

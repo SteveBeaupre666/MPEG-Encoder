@@ -6,13 +6,25 @@
 #include "ffmpeg.h"
 #include "Buffer.h"
 //----------------------------------------------------------------------//
-
+#include "Encoder.h"
+#include "GLEngine.h"
+//----------------------------------------------------------------------//
 #define INVALID_STREAM	-1
+//----------------------------------------------------------------------//
+
+extern HWND main_wnd;
+extern HWND render_wnd;
+
+extern BOOL Abort;
+extern BOOL Converting;
 
 class CDecoder {
 public:
 	CDecoder();
 	~CDecoder();
+private:
+	CEncoder  *pEncoder;
+	CGLEngine *pGLEngine;
 private:
     AVPacket        *packet; 
 	AVFrame         *src_frame;
@@ -22,7 +34,6 @@ private:
     SwsContext      *convert_ctx;
     AVFormatContext *format_ctx;
 private:
-
 	BYTE *pY;
 	BYTE *pU;
 	BYTE *pV;
@@ -37,23 +48,29 @@ private:
 	int dst_height;
 	int num_pixels;
 
+	AVPixelFormat src_format;
+	AVPixelFormat dst_format;
+
+	AVStream* video_stream;
+	AVStream* audio_stream;
+	
+	int video_stream_indx;
+	int audio_stream_indx;
+
 	int frame;
 	int frames_count;
-	int video_stream;
 
 	int decoded;
 	int got_frame;
-
-	AVPixelFormat src_format;
-	AVPixelFormat dst_format;
 
 	CBuffer FrameBuffer;
 private:
 	void Reset();
 	void Cleanup();
 public:
+	bool InitOpenGL();
+
 	bool OpenInputFile(char *fname);
-	void CloseInputFile();
 
 	bool AllocFormatContext();
 	void GetConvertContext();
@@ -64,7 +81,10 @@ public:
 	bool FindDecoder();
 	bool OpenCodec();
 	
+	int  GetFramesCount();
+
 	void SetupDecoder();
+	void SetupEncoder();
 	
 	bool AllocFrames();
 	bool AllocPacket();
@@ -77,15 +97,20 @@ public:
 
 	bool ReadFrame();
 	void ScaleFrame();
-	void DecodeFrame();
+	void RenderFrame();
+	void ProcessFrame();
 
-	bool DecodeVideo();
+	bool DecodeChunk();
 	bool IsVideoStream();
-
-	bool InitDecoder(char *fname);
 public:
-	bool Decode(char *fname);
+	int GetFrameWidth();
+	int GetFrameHeight();
+	AVPixelFormat GetPixelFormat();
 public:
-	virtual void OnFrameDecoded(int frame_nb, AVPacket *packet, AVFrame* frame, BYTE *pY, BYTE *pU, BYTE *pV){}
+	bool InitDecoder(char *fname, CEncoder *encoder, CGLEngine *engine);
+	bool DecodeVideo();
+	void CloseDecoder();
+public:
+	//virtual void OnFrameDecoded(int frame_nb, AVPacket *packet, AVFrame* frame, BYTE *pY, BYTE *pU, BYTE *pV){}
 };
 

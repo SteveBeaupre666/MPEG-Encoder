@@ -25,6 +25,7 @@ type
 
   TSetHandles       = procedure(hMainWnd, hRenderwnd: HWND; hRenderDC: HDC); stdcall;
   TConvertVideo     = function(input_fname, output_fname, error_msg: PCHAR): DWORD; stdcall;
+  TConvertVideo2    = function(input_fname, output_fname, error_msg: PCHAR): DWORD; stdcall;
   TStartJob         = procedure(files_count: Integer; input_fname, output_fname: PCHAR); stdcall;
   TIsJobRunning     = function(): BOOL; stdcall;
   TCancelJob        = procedure(); stdcall;
@@ -65,6 +66,7 @@ type
 
     SetHandles:       TSetHandles;
     ConvertVideo:     TConvertVideo;
+    ConvertVideo2:    TConvertVideo2;
     StartJob:         TStartJob;
     IsJobRunning:     TIsJobRunning;
     CancelJob:        TCancelJob;
@@ -126,6 +128,7 @@ hDll := LoadLibrary(PCHAR(DllName));
 if(hDll <> 0) then begin
   @SetHandles       := GetProcAddress(hDll, '_SetHandles');
   @ConvertVideo     := GetProcAddress(hDll, '_ConvertVideo');
+  @ConvertVideo2    := GetProcAddress(hDll, '_ConvertVideo2');
   @StartJob         := GetProcAddress(hDll, '_StartJob');
   @IsJobRunning     := GetProcAddress(hDll, '_IsJobRunning');
   @CancelJob        := GetProcAddress(hDll, '_CancelJob');
@@ -275,7 +278,7 @@ for i := 0 to FilesCount-1 do begin
   OutputFileName := FixPath(OutputFilePath) + ExtractFileName(ChangeFileExt(InputFileName, '.mpg'));
 
   ZeroMemory(pErrorMsg, ErrorMsgSize);
-  if(ConvertVideo(PCHAR(InputFileName), PCHAR(OutputFileName), pErrorMsg) <> SUCESS) then
+  if(ConvertVideo2(PCHAR(InputFileName), PCHAR(OutputFileName), pErrorMsg) <> SUCESS) then
     ShowMessage(pErrorMsg);
 end;
 
