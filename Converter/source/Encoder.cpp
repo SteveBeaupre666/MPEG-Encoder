@@ -12,37 +12,51 @@ CEncoder::~CEncoder()
 
 void CEncoder::Reset()
 {
-	codec        = NULL;
-    packet       = NULL; 
-	codec_ctx    = NULL;
+	codec      = NULL;
+    packet     = NULL; 
+	codec_ctx  = NULL;
 
-	frame_width  = 0;
-	frame_height = 0;
-	pixel_format = AV_PIX_FMT_NONE;
+	encoded    = 0;
+	got_output = 0;
 
-	encoded      = 0;
-	got_output   = 0;
+	InitSettings();
 }
 
 void CEncoder::Cleanup()
 {
 	Output.Close();
 
-	if(packet)
+	if(packet){
 		free(packet);
+		packet = NULL;
+	}
 
 	if(codec_ctx){
 		avcodec_close(codec_ctx);
 		//av_free(&codec_ctx);     // <--- This SHOULD BE HERE, BUT CRASH ???
-		//avcodec_free_context(&codec_ctx); 	
+		//avcodec_free_context(&codec_ctx);
+		codec_ctx = NULL;
 	}
 
 	Reset();
 }
 
+AVRational MakeRatio(int num, int den)
+{
+	AVRational ratio;
+	ratio.num = num;
+	ratio.den = den;
+	return ratio;
+}
+
 bool CEncoder::CreateOutputFile(char *fname)
 {
 	return Output.Create(fname);
+}
+
+void CEncoder::CloseOutputFile()
+{
+	Output.Close();
 }
 
 bool CEncoder::FindEncoder()
@@ -60,23 +74,20 @@ bool CEncoder::AllocCodecContext()
 	return codec_ctx != NULL;
 }
 
-void CEncoder::SetupEncoder(CEncoderSettings *pSettings)
+void CEncoder::SetCodecContext()
 {
-	codec_ctx->width        = pSettings->FrameWidth;
-	codec_ctx->height       = pSettings->FrameHeight;
-	codec_ctx->pix_fmt      = pSettings->PixelFormat;
-	codec_ctx->bit_rate     = pSettings->Bitrate;
-	codec_ctx->time_base    = pSettings->Framerate;
-	codec_ctx->gop_size     = pSettings->GopSize;
-	codec_ctx->max_b_frames = pSettings->Max_B_Frames;
-
-	frame_width  = codec_ctx->width;
-	frame_height = codec_ctx->height;
-	pixel_format = codec_ctx->pix_fmt;
+	codec_ctx->width        = Settings.FrameWidth;
+	codec_ctx->height       = Settings.FrameHeight;
+	codec_ctx->pix_fmt      = Settings.PixelFormat;
+	codec_ctx->bit_rate     = Settings.Bitrate;
+	codec_ctx->time_base    = Settings.Framerate;
+	codec_ctx->gop_size     = Settings.GopSize;
+	codec_ctx->max_b_frames = Settings.Max_B_Frames;
 }
 
 bool CEncoder::OpenCodec()
 {
+	SetCodecContext();
 	return avcodec_open2(codec_ctx, codec, NULL) >= 0;
 }
 
@@ -120,15 +131,37 @@ bool CEncoder::WriteEndCode()
 	return false;
 }
 
-bool CEncoder::InitEncoder(char *fname, CEncoderSettings *pSettings)
+void CEncoder::InitSettings()
+{
+	static const int gop_size    = 10;
+	static const int max_b_frame = 1;
+
+	ZeroMemory(&Settings, sizeof(CEncoderSettings));
+
+	Settings.GopSize      = gop_size;
+	Settings.Max_B_Frames = max_b_frame;
+
+	Settings.PixelFormat  = AV_PIX_FMT_YUV420P;
+}
+
+void CEncoder::SetupEncoder(int width, int height, int bitrate, AVRational framerate)
+{
+	InitSettings();
+
+	Settings.FrameWidth  = width;
+	Settings.FrameHeight = height;
+
+	Settings.Bitrate   = bitrate;
+	Settings.Framerate = framerate;
+}
+
+bool CEncoder::InitEncoder(char *fname)
 {
 	if(!FindEncoder())
 		return false;
 
 	if(!AllocCodecContext())
 		return false;
-
-	SetupEncoder(pSettings);
 
 	if(!OpenCodec())
 		return false;
@@ -149,14 +182,14 @@ bool CEncoder::EncodeFrame(AVFrame* frame)
 	got_output = 0;
 	encoded = avcodec_encode_video2(codec_ctx, packet, frame, &got_output);
 	if(encoded < 0){
-		CloseEncoder();
+		Cleanup();
 		return false;
 	}
 
 	if(got_output){
 		
 		if(!WriteFrame()){
-			CloseEncoder();
+			Cleanup();
 			return false;
 		}
 
@@ -164,9 +197,4 @@ bool CEncoder::EncodeFrame(AVFrame* frame)
 	}
 
 	return true;
-}
-
-void CEncoder::CloseEncoder()
-{
-	Cleanup();
 }

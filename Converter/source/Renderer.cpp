@@ -1,9 +1,9 @@
-#include "GLEngine.h"
+#include "Renderer.h"
 
 //-----------------------------------------------------------------------------
 // Constructor
 //-----------------------------------------------------------------------------
-CGLEngine::CGLEngine()
+CRenderer::CRenderer()
 {
 	Reset();
 }
@@ -11,7 +11,7 @@ CGLEngine::CGLEngine()
 //-----------------------------------------------------------------------------
 // Destructor
 //-----------------------------------------------------------------------------
-CGLEngine::~CGLEngine()
+CRenderer::~CRenderer()
 {
 	Shutdown();
 }
@@ -19,7 +19,7 @@ CGLEngine::~CGLEngine()
 //-----------------------------------------------------------------------------
 // Reset member variables
 //-----------------------------------------------------------------------------
-void CGLEngine::Reset()
+void CRenderer::Reset()
 {
 	hDC = NULL;
 	hRC = NULL;
@@ -38,7 +38,7 @@ void CGLEngine::Reset()
 //-----------------------------------------------------------------------------
 // Reset texture variables
 //-----------------------------------------------------------------------------
-void CGLEngine::ResetTextureData()
+void CRenderer::ResetTextureData()
 {
 	TexID     = 0;
 	TexWidth  = 0;
@@ -53,9 +53,39 @@ void CGLEngine::ResetTextureData()
 }
 
 //-----------------------------------------------------------------------------
+// Return true if the requested extention is available
+//-----------------------------------------------------------------------------
+bool CRenderer::CheckExtension(char *extName)
+{
+	char *extList = (char*) glGetString(GL_EXTENSIONS);
+	if(!extName || !extList)
+		return false;
+
+	while(*extList){
+
+		UINT ExtLen = (int)strcspn(extList, " ");
+		if(strlen(extName) == ExtLen && strncmp(extName, extList, ExtLen) == 0)
+			return true;
+
+		extList += ExtLen + 1;
+	}
+
+	return false;
+}
+
+//-----------------------------------------------------------------------------
+// Return true if the given version is greater than current OpenGL version
+//-----------------------------------------------------------------------------
+bool CRenderer::CheckVersion(int MajVer, int MinVer)
+{
+	char *Ver = (char*) glGetString(GL_VERSION);
+	return (Ver[0]-48 > MajVer || (Ver[0]-48 == MajVer && Ver[2]-48 >= MinVer));
+}
+
+//-----------------------------------------------------------------------------
 // Set the pixel format
 //-----------------------------------------------------------------------------
-bool CGLEngine::SetupPixelFormatDescriptor(HDC hdc)
+bool CRenderer::SetupPixelFormatDescriptor(HDC hdc)
 { 
 	static const int pfd_size = sizeof(PIXELFORMATDESCRIPTOR);
 
@@ -85,7 +115,7 @@ bool CGLEngine::SetupPixelFormatDescriptor(HDC hdc)
 //-----------------------------------------------------------------------------
 // Return true if OpenGL is initialized
 //-----------------------------------------------------------------------------
-bool CGLEngine::IsInitialized()
+bool CRenderer::IsInitialized()
 { 
 	return IsOpenGLInitialized;
 }
@@ -93,7 +123,7 @@ bool CGLEngine::IsInitialized()
 //-----------------------------------------------------------------------------
 // Initialize OpenGL
 //-----------------------------------------------------------------------------
-bool CGLEngine::Initialize(HWND hwnd)
+bool CRenderer::Initialize(HWND hwnd)
 {
 	if(IsInitialized())
 		return false;
@@ -112,9 +142,8 @@ bool CGLEngine::Initialize(HWND hwnd)
 	BOOL res = wglMakeCurrent(hDC, hRC);	                        
 
 	///////////////////////////////////////////////////////////////////////////////////////////
-	static const float BgCol = 0.0;
 	glColor3f(1.0f, 1.0f, 1.0f);                          // Current Color
-	glClearColor(BgCol, BgCol, BgCol, 0.0f);              // Black Background
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);                 // Black Background
 	glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // Clear stencil buffer
 	glClearDepth(1.0f);									  // Depth Buffer Setup
 	///////////////////////////////////////////////////////////////////////////////////////////
@@ -148,7 +177,7 @@ bool CGLEngine::Initialize(HWND hwnd)
 //-----------------------------------------------------------------------------
 // Shutdown OpenGL
 //-----------------------------------------------------------------------------
-void CGLEngine::Shutdown()
+void CRenderer::Shutdown()
 {
 	if(!IsInitialized())
 		return;
@@ -173,7 +202,7 @@ void CGLEngine::Shutdown()
 //-----------------------------------------------------------------------------
 // Return the opengl texture format from the number of bytes per pixels
 //-----------------------------------------------------------------------------
-UINT CGLEngine::GetTextureFormat(UINT bpp)
+UINT CRenderer::GetTextureFormat(UINT bpp)
 {
 	switch(bpp)
 	{
@@ -188,7 +217,7 @@ UINT CGLEngine::GetTextureFormat(UINT bpp)
 //-----------------------------------------------------------------------------
 // Return true if the number of bytes per pixels is valid
 //-----------------------------------------------------------------------------
-bool CGLEngine::IsTextureFormatValid(UINT bpp)
+bool CRenderer::IsTextureFormatValid(UINT bpp)
 {
 	return GetTextureFormat(bpp) != 0;
 }
@@ -196,7 +225,7 @@ bool CGLEngine::IsTextureFormatValid(UINT bpp)
 //-----------------------------------------------------------------------------
 // Create the main texture
 //-----------------------------------------------------------------------------
-bool CGLEngine::CreateTexture(UINT w, UINT h, UINT bpp)
+bool CRenderer::CreateTexture(UINT w, UINT h, UINT bpp)
 {
 	if(!IsInitialized())
 		return false;
@@ -241,7 +270,7 @@ bool CGLEngine::CreateTexture(UINT w, UINT h, UINT bpp)
 //-----------------------------------------------------------------------------
 // Update the main texture
 //-----------------------------------------------------------------------------
-void CGLEngine::UpdateTexture(BYTE *pY, BYTE *pU, BYTE *pV)
+void CRenderer::UpdateTexture(BYTE *pY, BYTE *pU, BYTE *pV)
 {
 	if(!IsInitialized())
 		return;
@@ -253,7 +282,7 @@ void CGLEngine::UpdateTexture(BYTE *pY, BYTE *pU, BYTE *pV)
 //-----------------------------------------------------------------------------
 // Delete the main texture
 //-----------------------------------------------------------------------------
-void CGLEngine::DeleteTexture()
+void CRenderer::DeleteTexture()
 {
 	if(!IsInitialized())
 		return;
@@ -269,7 +298,7 @@ void CGLEngine::DeleteTexture()
 //-----------------------------------------------------------------------------
 // Calculate the rendering window size
 //-----------------------------------------------------------------------------
-void CGLEngine::CalcWindowSize()
+void CRenderer::CalcWindowSize()
 {
 	if(hWnd){
 		RECT r;
@@ -282,7 +311,7 @@ void CGLEngine::CalcWindowSize()
 //-----------------------------------------------------------------------------
 // Setup OpenGL to draw in 2D
 //-----------------------------------------------------------------------------
-void CGLEngine::Set2DMode()
+void CRenderer::Set2DMode()
 {
 	CalcWindowSize();
 	glViewport(0, 0, WndWidth, WndHeight);
@@ -299,9 +328,20 @@ void CGLEngine::Set2DMode()
 }
 
 //-----------------------------------------------------------------------------
+// Set the color of the background...
+//-----------------------------------------------------------------------------
+void CRenderer::SetBackgroundColor(float r, float g, float b, float a)
+{
+	if(!IsInitialized())
+		return;
+
+	glClearColor(r, g, b, a);
+}
+
+//-----------------------------------------------------------------------------
 // Draw a textured quad on screen
 //-----------------------------------------------------------------------------
-void CGLEngine::DrawQuad()
+void CRenderer::DrawQuad()
 {
 	float ww = (float)WndWidth;
 	float wh = (float)WndHeight;
@@ -370,9 +410,9 @@ void CGLEngine::DrawQuad()
 }
 
 //-----------------------------------------------------------------------------
-// Render without shaders
+// Render the frame
 //-----------------------------------------------------------------------------
-void CGLEngine::Render()
+void CRenderer::Render(bool clear)
 {
 	if(!IsInitialized())
 		return;
@@ -381,7 +421,9 @@ void CGLEngine::Render()
 	glColor3f(1.0f, 1.0f, 1.0f);
 
 	Set2DMode();
-	DrawQuad();
+	
+	if(TexID && !clear)
+		DrawQuad();
 
 	SwapBuffers(hDC);
 }

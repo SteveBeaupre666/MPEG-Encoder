@@ -1,8 +1,6 @@
 #include "ConverterDll.h"
 
-HWND main_wnd   = NULL;
-HWND render_wnd = NULL;
-HDC  render_hdc = NULL;
+HWND hMainWnd = NULL;
 
 CThread Job;
 JobDataStruct JobData;
@@ -11,10 +9,10 @@ DWORD WINAPI JobThread(void *params);
 CBuffer InputFiles;
 CBuffer OutputFiles;
 
-BOOL Abort = FALSE;
-BOOL Converting = FALSE;
+CDecoder *pDecoder = NULL;
+CEncoder *pEncoder = NULL;
 
-//CGLEngine GLEngine;
+CRenderer Renderer;
 
 ///////////////////////////////////////////////////
 // Dll entry point...
@@ -48,34 +46,44 @@ void ShutDownDll()
 	InputFiles.Free();
 	OutputFiles.Free();
 
-	//_CleanupOpenGL();
+	_CleanupOpenGL();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-void EXP_FUNC _SetHandles(HWND hMainWnd, HWND hRenderWnd, HDC hRenderDC)
+void EXP_FUNC _SetHandle(HWND hWnd)
 {
-	main_wnd   = hMainWnd;
-	render_wnd = hRenderWnd;
-	render_hdc = hRenderDC;
+	hMainWnd = hWnd;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 BOOL EXP_FUNC _InitializeOpenGL(HWND hWnd)
 {
-	//return GLEngine.Initialize(hWnd, false) == true;
-	return FALSE;
+	return Renderer.Initialize(hWnd) == true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 void EXP_FUNC _CleanupOpenGL()
 {
-	//GLEngine.MakeCurrentContext();
-	//GLEngine.Shutdown();
+	Renderer.Shutdown();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+void EXP_FUNC _Render()
+{
+	Renderer.Render();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+void EXP_FUNC _SetClearColor(float r, float g, float b)
+{
+	Renderer.SetBackgroundColor(r,g,b);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -115,7 +123,7 @@ BOOL EXP_FUNC _IsJobRunning()
 	#ifdef MULTI_THREADED
 	return Job.IsRunning();
 	#else
-	return Converting == TRUE;
+	return pDecoder != NULL && pDecoder->IsConverting() != FALSE;
 	#endif
 }
 
@@ -127,7 +135,8 @@ void EXP_FUNC _CancelJob()
 	if(Job.IsRunning())
 		Job.Abort();
 	#else
-	Abort = TRUE;
+	if(pDecoder)
+		pDecoder->AbortConversion();
 	#endif
 }
 
@@ -182,64 +191,30 @@ DWORD WINAPI JobThread(void *params)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-DWORD EXP_FUNC _ConvertVideo2(char *input_fname, char *output_fname, char *error_msg)
+UINT EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname)
 {
-	DWORD res  = 0;
-	Converting = TRUE;
+	pEncoder = new CEncoder();
+	pDecoder = new CDecoder();
 
-	CDecoder Decoder;
-	CEncoder Encoder;
+	UINT res = UNKNOW_ERROR;
 
-	CGLEngine GLEngine;
-
-	if(!Decoder.InitDecoder(input_fname, &Encoder, &GLEngine)){
-        sprintf(error_msg, "Unable to initialize the decoder.\n");
-		goto cleanup;
+	try {
+		res = pDecoder->DecodeVideo(input_fname, output_fname, pEncoder, &Renderer, hMainWnd);
+	} catch(...){
+		SAFE_DELETE_OBJECT(pEncoder);
+		SAFE_DELETE_OBJECT(pDecoder);
+		return false;
 	}
-
-	AVRational avRatio;
-	avRatio.num = 1;
-	avRatio.den = 25;
-
-	CEncoderSettings EncoderSettings;
-	EncoderSettings.FrameWidth   = Decoder.GetFrameWidth();
-	EncoderSettings.FrameHeight  = Decoder.GetFrameHeight();
-	EncoderSettings.PixelFormat  = Decoder.GetPixelFormat();
-	EncoderSettings.Framerate    = avRatio;
-	EncoderSettings.Bitrate      = 2000000;
-	EncoderSettings.GopSize      = 10;
-	EncoderSettings.Max_B_Frames = 1;
-
-	if(!Encoder.InitEncoder(output_fname, &EncoderSettings)){
-        sprintf(error_msg, "Unable to initialize the encoder.\n");
-		goto cleanup;
-	}
-
-	if(!Decoder.DecodeVideo()){
-        sprintf(error_msg, "An error occured while decoding the file.\n");
-		goto cleanup;
-	}
-
-	if(!Encoder.WriteEndCode()){
-        sprintf(error_msg, "Unable to write end code to output file.\n");
-		goto cleanup;
-	}
-
-	res = SUCCESS;
-
-cleanup:
-
-	Decoder.CloseDecoder();
-	Encoder.CloseEncoder();
-
-	Converting = FALSE;
-
+	
+	SAFE_DELETE_OBJECT(pEncoder);
+	SAFE_DELETE_OBJECT(pDecoder);
+		
 	return res;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-DWORD EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname, char *error_msg)
+/*DWORD EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname, char *error_msg)
 {
 	DWORD res = 0;
 
@@ -248,7 +223,7 @@ DWORD EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname, char *error_
 	Converting = TRUE;
 	#endif
 
-	CGLEngine GLEngine;
+	CRenderer GLEngine;
 
 	CBuffer FrameBuffer;
 	CFileIO OutputFile;
@@ -508,7 +483,7 @@ DWORD EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname, char *error_
 		GLEngine.UpdateTexture(pY, pU, pV);
 		GLEngine.Render();
 
-		got_output = 0;                                                    /* i think this should NOT be commented... test last */
+		got_output = 0;                                                    
 		int encoded = avcodec_encode_video2(ffmpeg.enc_codec_ctx, ffmpeg.enc_packet, ffmpeg.dst_frame, &got_output);
 		if(encoded < 0){
 			sprintf(error_msg, "Error encoding frame %d\n", frame);
@@ -572,11 +547,11 @@ void PostThreadExitedMsg(bool canceled)
 	if(main_wnd)
 		PostMessage(main_wnd, WM_THREAD_TERMINATED, 0, canceled ? 1 : 0);
 	#endif
-}
+}*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-void WriteEndCode(CFileIO &OutputFile)
+/*void WriteEndCode(CFileIO &OutputFile)
 {
 	if(OutputFile.IsOpened()){
 		DWORD EndCode = 0x000001B7;
@@ -654,7 +629,7 @@ void Cleanup(ffmpegStruct &ffmpeg, CBuffer &FrameBuffer, CFileIO &OutputFile)
 	FreeCodecCtx(&ffmpeg.enc_codec_ctx, &ffmpeg.enc_codec, 1);	
 	FreeFormatCtx(&ffmpeg.format_ctx);
 	FreeConvertCtx(&ffmpeg.convert_ctx);
-}
+}*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 

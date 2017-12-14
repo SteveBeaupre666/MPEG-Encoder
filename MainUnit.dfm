@@ -149,19 +149,22 @@ object MainForm: TMainForm
     Height = 19
     Panels = <
       item
-        Width = 200
+        Width = 150
       end
       item
-        Width = 200
+        Width = 150
       end
       item
-        Width = 200
+        Width = 150
       end
       item
-        Width = 200
+        Width = 150
       end
       item
-        Width = 200
+        Width = 150
+      end
+      item
+        Width = 150
       end>
     SimplePanel = False
   end
@@ -179,5 +182,11 @@ object MainForm: TMainForm
     ParentFont = False
     TabOrder = 10
     OnClick = ButtonCancelClick
+  end
+  object RenderTimer: TTimer
+    Interval = 50
+    OnTimer = RenderTimerTimer
+    Left = 24
+    Top = 24
   end
 end

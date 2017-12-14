@@ -9,21 +9,22 @@
 #include <gl\gl.h>
 #include <gl\glu.h>
 #include <gl\glext.h>
-#include "GLExtentions.h"
 //----------------------------------------------------------------------//
 #include "Rectangle.h"
 #include "TextureBuffer.h"
 #include "ColorConversion.h"
+//----------------------------------------------------------------------//
+#define BACKGROUND_COLOR 0.10f
 //----------------------------------------------------------------------//
 
 typedef BOOL (APIENTRY *PFVSYNC)(int);
 
 #define GL_CLEAR_FLAGS	(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
 
-class CGLEngine {
+class CRenderer {
 public:
-	CGLEngine();
-	~CGLEngine();
+	CRenderer();
+	~CRenderer();
 protected:
 	HDC   hDC;
 	HGLRC hRC;
@@ -31,6 +32,7 @@ protected:
 	PFVSYNC VSync;
 private:
 	HWND hWnd;
+
 	UINT WndWidth;
 	UINT WndHeight;
 
@@ -49,6 +51,10 @@ private:
 	void Reset();
 	void ResetTextureData();
 	bool IsOpenGLInitialized;
+
+	bool CheckExtension(char *extName);
+	bool CheckVersion(int MajVer, int MinVer);
+
 	bool SetupPixelFormatDescriptor(HDC hdc);
 
 	void CalcWindowSize();
@@ -67,7 +73,8 @@ public:
 	void UpdateTexture(BYTE *pY, BYTE *pU, BYTE *pV);
 	void DeleteTexture();
 
-	void Render();
+	void SetBackgroundColor(float r, float g, float b, float a = 0.0f);
+	void Render(bool clear = false);
 };
 
 

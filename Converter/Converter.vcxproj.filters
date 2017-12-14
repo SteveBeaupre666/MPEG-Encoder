@@ -22,9 +22,6 @@
     <ClCompile Include="source\FileIO.cpp">
       <Filter>Tools</Filter>
     </ClCompile>
-    <ClCompile Include="source\Window.cpp">
-      <Filter>Tools</Filter>
-    </ClCompile>
     <ClCompile Include="source\Thread.cpp">
       <Filter>Tools</Filter>
     </ClCompile>
@@ -40,17 +37,14 @@
     <ClCompile Include="source\ColorConversion.cpp">
       <Filter>OpenGL</Filter>
     </ClCompile>
-    <ClCompile Include="source\GLEngine.cpp">
-      <Filter>OpenGL</Filter>
-    </ClCompile>
-    <ClCompile Include="source\GLExtentions.cpp">
-      <Filter>OpenGL</Filter>
-    </ClCompile>
     <ClCompile Include="source\TextureBuffer.cpp">
       <Filter>OpenGL</Filter>
     </ClCompile>
-    <ClCompile Include="source\Converter.cpp">
-      <Filter>Master Files</Filter>
+    <ClCompile Include="source\Renderer.cpp">
+      <Filter>OpenGL</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Timer.cpp">
+      <Filter>Tools</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -58,9 +52,6 @@
       <Filter>Tools</Filter>
     </ClInclude>
     <ClInclude Include="source\FileIO.h">
-      <Filter>Tools</Filter>
-    </ClInclude>
-    <ClInclude Include="source\Window.h">
       <Filter>Tools</Filter>
     </ClInclude>
     <ClInclude Include="source\Thread.h">
@@ -78,20 +69,17 @@
     <ClInclude Include="source\ColorConversion.h">
       <Filter>OpenGL</Filter>
     </ClInclude>
-    <ClInclude Include="source\GLEngine.h">
-      <Filter>OpenGL</Filter>
-    </ClInclude>
-    <ClInclude Include="source\GLExtentions.h">
-      <Filter>OpenGL</Filter>
-    </ClInclude>
     <ClInclude Include="source\Rectangle.h">
       <Filter>OpenGL</Filter>
     </ClInclude>
     <ClInclude Include="source\TextureBuffer.h">
       <Filter>OpenGL</Filter>
     </ClInclude>
-    <ClInclude Include="source\Converter.h">
-      <Filter>Master Files</Filter>
+    <ClInclude Include="source\Renderer.h">
+      <Filter>OpenGL</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Timer.h">
+      <Filter>Tools</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

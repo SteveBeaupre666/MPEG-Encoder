@@ -4,24 +4,30 @@
 #include <stdio.h>
 //----------------------------------------------------------------------//
 #include "ffmpeg.h"
+//----------------------------------------------------------------------//
 #include "FileIO.h"
+#include "Renderer.h"
 //----------------------------------------------------------------------//
 
 struct CEncoderSettings
 {	
+	int Bitrate;
 	int FrameWidth;
 	int FrameHeight;
-	AVPixelFormat PixelFormat;
 	
-	int Bitrate;
-	AVRational Framerate;
+	AVRational    Framerate;
+	AVPixelFormat PixelFormat;
 
 	int GopSize;
 	int Max_B_Frames;
 };
 
 //----------------------------------------------------------------------//
+	
+AVRational MakeRatio(int num, int den);
 
+//----------------------------------------------------------------------//
+	
 class CEncoder {
 public:
 	CEncoder();
@@ -31,36 +37,35 @@ private:
     AVPacket        *packet; 
     AVCodecContext  *codec_ctx;
 private:
-	int frame_width;
-	int frame_height;
-	
-	AVPixelFormat pixel_format;
-
 	int encoded;
 	int got_output;
-
+private:
 	CFileIO Output;
+	CEncoderSettings Settings;
 private:
 	void Reset();
-	void Cleanup();
 public:
 	bool CreateOutputFile(char *fname);
+	void CloseOutputFile();
 
 	bool AllocCodecContext();
 	bool FindEncoder();
-
-	void SetupEncoder(CEncoderSettings *pSettings);
+	void SetCodecContext();
 	bool OpenCodec();
+
+	void InitSettings();
 
 	bool AllocPacket();
 	void InitPacket();
 	void FreePacket();
 
 	bool WriteFrame();
-public:
-	bool InitEncoder(char *fname, CEncoderSettings *pSettings);
+
+	void SetupEncoder(int width, int height, int bitrate, AVRational framerate);
+	bool InitEncoder(char *fname);
+	
 	bool EncodeFrame(AVFrame* frame);
 	bool WriteEndCode();
-	void CloseEncoder();
+	void Cleanup();
 };
 

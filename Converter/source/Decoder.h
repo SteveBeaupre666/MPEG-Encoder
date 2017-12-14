@@ -4,27 +4,44 @@
 #include <stdio.h>
 //----------------------------------------------------------------------//
 #include "ffmpeg.h"
-#include "Buffer.h"
 //----------------------------------------------------------------------//
+#include "Timer.h"
+#include "Buffer.h"
 #include "Encoder.h"
-#include "GLEngine.h"
+#include "SafeKill.h"
 //----------------------------------------------------------------------//
 #define INVALID_STREAM	-1
 //----------------------------------------------------------------------//
+#define MAX_TIMES_SAMPLES	50
+//----------------------------------------------------------------------//
+#define JOB_CANCELED	0x00000001
+#define JOB_SUCCEDED	0x00000000
+#define UNKNOW_ERROR	0xFFFFFFFF
+//----------------------------------------------------------------------//
+#define WM_UPDATE_FILE_PROGRESS		WM_USER + 101
+#define WM_THREAD_TERMINATED		WM_USER + 103
+//----------------------------------------------------------------------//
 
-extern HWND main_wnd;
-extern HWND render_wnd;
-
-extern BOOL Abort;
-extern BOOL Converting;
+struct CProgressInfo {
+	int   FrameNumber;
+	int   FramesCount;
+	int   FramesPerSeconds;
+	float AvgTimePerFrames;
+	float RemainingTime;
+};
 
 class CDecoder {
 public:
 	CDecoder();
 	~CDecoder();
 private:
+	CTimer Timer;
+	void CalcRemainingTime();
+private:
 	CEncoder  *pEncoder;
-	CGLEngine *pGLEngine;
+	CRenderer *pRenderer;
+private:
+	HWND hMainWnd;
 private:
     AVPacket        *packet; 
 	AVFrame         *src_frame;
@@ -33,6 +50,9 @@ private:
     AVCodecContext  *codec_ctx;
     SwsContext      *convert_ctx;
     AVFormatContext *format_ctx;
+private:
+	BOOL Abort;
+	BOOL Converting;
 private:
 	BYTE *pY;
 	BYTE *pU;
@@ -57,19 +77,21 @@ private:
 	int video_stream_indx;
 	int audio_stream_indx;
 
-	int frame;
-	int frames_count;
-
 	int decoded;
 	int got_frame;
+
+	int frame;
+	int frames_count;
+	int frames_per_seconds;
+	
+	float RemainingTime;
+	float AvgTimePerFrames;
+	float ElapsedTime[MAX_TIMES_SAMPLES];
 
 	CBuffer FrameBuffer;
 private:
 	void Reset();
-	void Cleanup();
 public:
-	bool InitOpenGL();
-
 	bool OpenInputFile(char *fname);
 
 	bool AllocFormatContext();
@@ -84,7 +106,7 @@ public:
 	int  GetFramesCount();
 
 	void SetupDecoder();
-	void SetupEncoder();
+	void SetupEncoder(CEncoderSettings *pSettings);
 	
 	bool AllocFrames();
 	bool AllocPacket();
@@ -97,20 +119,31 @@ public:
 
 	bool ReadFrame();
 	void ScaleFrame();
-	void RenderFrame();
+	void RenderFrame(bool clear = false);
 	void ProcessFrame();
 
 	bool DecodeChunk();
 	bool IsVideoStream();
-public:
-	int GetFrameWidth();
-	int GetFrameHeight();
-	AVPixelFormat GetPixelFormat();
-public:
-	bool InitDecoder(char *fname, CEncoder *encoder, CGLEngine *engine);
-	bool DecodeVideo();
-	void CloseDecoder();
-public:
-	//virtual void OnFrameDecoded(int frame_nb, AVPacket *packet, AVFrame* frame, BYTE *pY, BYTE *pU, BYTE *pV){}
+
+	void SetWindow(HWND hWnd);
+	void UpdateProgress(int cur_frame, int frames_count);
+	
+	//bool Aborted();
+	bool IsConverting();
+
+	void AbortConversion();
+	void ProcessMessages();
+
+	bool InitDecoder(char *in, char *out);
+	bool InitEncoder(char *out);
+	bool InitRenderer();
+
+	UINT DecodeVideo(char *in, char *out, CEncoder *encoder, CRenderer *renderer, HWND hWnd);
+
+	void CleanupDecoder();
+	void CleanupEncoder();
+	void CleanupRenderer();
+
+	void Cleanup();
 };
 

@@ -12,8 +12,9 @@ CDecoder::~CDecoder()
 
 void CDecoder::Reset()
 {
+	hMainWnd     = NULL;
 	pEncoder     = NULL;
-	pGLEngine    = NULL;
+	pRenderer    = NULL;
 
     packet       = NULL; 
 	src_frame    = NULL;
@@ -23,6 +24,9 @@ void CDecoder::Reset()
     convert_ctx  = NULL;
     format_ctx   = NULL;
 			    
+	Abort        = FALSE;
+	Converting   = FALSE;
+
 	pY           = NULL;
 	pU           = NULL;
 	pV           = NULL;
@@ -54,29 +58,83 @@ void CDecoder::Reset()
 
 void CDecoder::Cleanup()
 {
-	pGLEngine->Shutdown();
+	CleanupDecoder();
+	CleanupEncoder();
+	CleanupRenderer();
+	Reset();
+}
+
+void CDecoder::CleanupDecoder()
+{
+	if(src_frame){
+		av_frame_free(&src_frame);
+		src_frame = NULL;
+	}
+
+	if(dst_frame){
+		av_frame_free(&dst_frame);
+		dst_frame = NULL;
+	}
+
+	if(packet){
+		free(packet);
+		packet = NULL;
+	}
+
+	if(codec_ctx){
+		avcodec_close(codec_ctx);
+		codec_ctx = NULL;
+		codec = NULL;
+	}
+
+	if(format_ctx){
+		avformat_close_input(&format_ctx);
+		format_ctx = NULL;
+	}
+
+	if(convert_ctx){
+		sws_freeContext(convert_ctx);
+		convert_ctx = NULL;
+	}
 
 	FrameBuffer.Free();
+}
 
-	if(src_frame)
-		av_frame_free(&src_frame);
+void CDecoder::CleanupEncoder()
+{
+	if(pEncoder){
+		pEncoder->CloseOutputFile();
+		pEncoder->Cleanup();
+		pEncoder = NULL;
+	}
+}
 
-	if(dst_frame)
-		av_frame_free(&dst_frame);
+void CDecoder::CleanupRenderer()
+{
+	if(pRenderer){
+		pRenderer->DeleteTexture();
+		pRenderer = NULL;
+	}
+}
 
-	if(packet)
-		free(packet);
+void CDecoder::SetWindow(HWND hWnd)
+{
+	hMainWnd = hWnd;
+}
 
-	if(codec_ctx)
-		avcodec_close(codec_ctx);
+void CDecoder::AbortConversion()
+{
+	Abort = TRUE;
+}
 
-	if(format_ctx)
-		avformat_close_input(&format_ctx);
+//bool CDecoder::Aborted()
+//{
+//	return Abort != FALSE;
+//}
 
-	if(convert_ctx)
-		sws_freeContext(convert_ctx);
-
-	Reset();
+bool CDecoder::IsConverting()
+{
+	return Converting != FALSE;
 }
 
 bool CDecoder::OpenInputFile(char *fname)
@@ -172,6 +230,9 @@ void CDecoder::SetupDecoder()
 	y_size = num_pixels;
 	u_size = num_pixels / 4;
 	v_size = num_pixels / 4;
+
+	if(pEncoder)
+		pEncoder->SetupEncoder(dst_width, dst_height, 2000000, MakeRatio(1, 25));
 }
 
 bool CDecoder::AllocFrames()
@@ -239,12 +300,38 @@ void CDecoder::ScaleFrame()
 	sws_scale(convert_ctx, src_frame->data, src_frame->linesize, 0, src_height, dst_frame->data, dst_frame->linesize);
 }
 
-void CDecoder::RenderFrame()
+void CDecoder::RenderFrame(bool clear)
 {
-	if(pGLEngine){
-		pGLEngine->UpdateTexture(pY, pU, pV);
-		pGLEngine->Render();
+	if(pRenderer){
+		if(!clear)
+			pRenderer->UpdateTexture(pY, pU, pV);
+		pRenderer->Render(clear);
 	}
+}
+
+void CDecoder::CalcRemainingTime()
+{
+	int RemainingFrames = frames_count - frame;
+	if(RemainingFrames < 0)
+		return;
+
+	//frames_per_seconds = ;
+	AvgTimePerFrames = 0.0f;
+
+	float dt = Timer.Tick();
+
+	int NumSamples = frame < MAX_TIMES_SAMPLES ? frame : MAX_TIMES_SAMPLES - 1;
+	for(int i = 0; i < NumSamples; i++){
+		float t = ElapsedTime[i];
+		ElapsedTime[i+1] = t;
+		AvgTimePerFrames += t;
+	}
+	
+	ElapsedTime[0]   = dt;
+	AvgTimePerFrames += dt;
+	AvgTimePerFrames /= (float)NumSamples;
+	
+	RemainingTime = AvgTimePerFrames * RemainingFrames;
 }
 
 void CDecoder::ProcessFrame()
@@ -254,48 +341,38 @@ void CDecoder::ProcessFrame()
 	ScaleFrame();
 	RenderFrame();
 
+	CalcRemainingTime();
+	UpdateProgress(frame, frames_count);
+	
 	if(pEncoder)
 		pEncoder->EncodeFrame(dst_frame);
 }
 
-int CDecoder::GetFrameWidth()
+void CDecoder::UpdateProgress(int cur_frame, int num_frames)
 {
-	return dst_width;
+	if(!hMainWnd)
+		return;
+		
+	if(num_frames <= 0 || cur_frame > num_frames)
+		cur_frame = num_frames = 0;
+
+	CProgressInfo Info;
+	Info.FrameNumber      = cur_frame;
+	Info.FramesCount      = num_frames;
+	Info.RemainingTime    = RemainingTime;
+	Info.AvgTimePerFrames = AvgTimePerFrames;
+	Info.FramesPerSeconds = frames_per_seconds;
+
+	// NOTE: Use post message if multithreaded instead...
+	SendMessage(hMainWnd, WM_UPDATE_FILE_PROGRESS, (WPARAM)(DWORD)&Info, 0);
 }
 
-int CDecoder::GetFrameHeight()
+bool CDecoder::InitDecoder(char *in, char *out)
 {
-	return dst_height;
-}
-
-AVPixelFormat CDecoder::GetPixelFormat()
-{
-	return dst_format;
-}
-
-bool CDecoder::InitOpenGL()
-{	
-	if(!pGLEngine)
-		return false;
-
-	if(!pGLEngine->Initialize(render_wnd))
-		return false;
-
-	if(!pGLEngine->CreateTexture(dst_width, dst_height, 4))
-		return false;
-
-	return true;
-}
-
-bool CDecoder::InitDecoder(char *fname, CEncoder *encoder, CGLEngine *engine)
-{
-	pEncoder  = encoder;
-	pGLEngine = engine;
-
 	if(!AllocFormatContext())
 		return false;
 
-	if(!OpenInputFile(fname))
+	if(!OpenInputFile(in))
 		return false;
 
 	if(!FindStreamInfo())
@@ -322,18 +399,72 @@ bool CDecoder::InitDecoder(char *fname, CEncoder *encoder, CGLEngine *engine)
 		return false;
 
 	SetupFrameBuffer();
-
 	GetConvertContext();
 
-	if(!InitOpenGL())
+	if(!InitEncoder(out))
+		return false;
+
+	if(!InitRenderer())
 		return false;
 
 	return true;
 }
 
-bool CDecoder::DecodeVideo()
+bool CDecoder::InitEncoder(char *out)
 {
-	bool res = false;
+	if(pEncoder){
+		if(!pEncoder->InitEncoder(out))
+			return false;
+	}
+
+	return true;
+}
+
+bool CDecoder::InitRenderer()
+{
+	if(pRenderer){
+		if(!pRenderer->IsInitialized() || !pRenderer->CreateTexture(dst_width, dst_height, 4))
+			return false;	
+	}
+
+	return true;
+}
+
+void CDecoder::ProcessMessages()
+{
+	if(hMainWnd){
+
+		static MSG msg;
+		ZeroMemory(&msg, sizeof(MSG));
+
+		while(PeekMessage(&msg, hMainWnd, NULL, NULL, PM_REMOVE)){
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+	}
+}
+
+UINT CDecoder::DecodeVideo(char *in, char *out, CEncoder *encoder, CRenderer *renderer, HWND hWnd)
+{
+	Converting = TRUE;
+	Abort      = FALSE;
+
+	Cleanup();
+
+	SetWindow(hWnd);
+
+	pEncoder  = encoder;
+	pRenderer = renderer;
+
+	UINT res = UNKNOW_ERROR;
+	if(!InitDecoder(in, out))
+		goto cleanup;
+
+	frame = 0;
+	frames_count = GetFramesCount();
+
+	Timer.Reset();
+	ZeroMemory(&ElapsedTime[0], sizeof(float) * MAX_TIMES_SAMPLES);
 
 	InitPacket();
 
@@ -341,8 +472,10 @@ bool CDecoder::DecodeVideo()
 
 		if(IsVideoStream()){
 
-			if(Abort)
+			if(Abort){
+				res = JOB_CANCELED;
 				goto cleanup;
+			}
 
 			if(!DecodeChunk())
 				goto cleanup;
@@ -356,8 +489,10 @@ bool CDecoder::DecodeVideo()
 
 	while(1){
 
-		if(Abort)
+		if(Abort){
+			res = JOB_CANCELED;
 			goto cleanup;
+		}
 
 		if(!DecodeChunk())
 			goto cleanup;
@@ -370,19 +505,18 @@ bool CDecoder::DecodeVideo()
 		FreePacket();
 	}
 
-	res = true;
+	res = JOB_SUCCEDED;
 
 cleanup:
+
+	//RenderFrame(true);
 
 	if(pEncoder)
 		pEncoder->WriteEndCode();
 
-	CloseDecoder();
+	Cleanup();
+
+	Converting = FALSE;
 
 	return res;
-}
-
-void CDecoder::CloseDecoder()
-{
-	Cleanup();
 }
