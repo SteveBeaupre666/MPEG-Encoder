@@ -295,7 +295,7 @@ void CDecoder::RenderFrame()
 {
 	if(pRenderer){
 		pRenderer->UpdateTexture(pY, pU, pV);
-		pRenderer->Render(SECONDARY_THREAD);
+		pRenderer->Render();
 	}
 }
 
@@ -509,7 +509,7 @@ cleanup:
 
 	if(pRenderer){
 		pRenderer->DeleteTexture();
-		pRenderer->Render(SECONDARY_THREAD, true);
+		pRenderer->Render();
 	}
 
 	if(pEncoder)

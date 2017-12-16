@@ -63,19 +63,8 @@ void EXP_FUNC _SetHandle(HWND hWnd)
 BOOL EXP_FUNC _InitializeOpenGL(HWND hWnd)
 {
 	Renderer.SetWindow(hWnd);
-	Renderer.SetDC(PRIMARY_THREAD);
-	
-	if(!Renderer.SetPFD(PRIMARY_THREAD))
-		return FALSE;
-	
-	if(!Renderer.CreateContext(PRIMARY_THREAD))
-		return FALSE;
+	Renderer.CreatePrimaryContext();
 
-	if(!Renderer.SelectContext(PRIMARY_THREAD))
-		return FALSE;
-	
-	Renderer.InitContext(PRIMARY_THREAD);
-	
 	return TRUE;
 }
 
@@ -83,20 +72,20 @@ BOOL EXP_FUNC _InitializeOpenGL(HWND hWnd)
 
 void EXP_FUNC _CleanupOpenGL()
 {
-	Renderer.SelectContext(PRIMARY_THREAD);
-	Renderer.DeleteContext(PRIMARY_THREAD);
+	Renderer.DeletePrimaryContext();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 void EXP_FUNC _Render()
 {
-	Renderer.Render(PRIMARY_THREAD);
+	Renderer.SelectContext(PRIMARY_THREAD);
+	Renderer.Render();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-void EXP_FUNC _SetClearColor(float r, float g, float b)
+void EXP_FUNC _SetBgColor(float r, float g, float b)
 {
 	Renderer.SetBackgroundColor(r,g,b);
 }
@@ -162,10 +151,7 @@ DWORD WINAPI JobThread(void *params)
 
 	JobDataStruct *pJobData = (JobDataStruct*)params;
 
-	Renderer.SetDC(SECONDARY_THREAD);
-	if(!Renderer.CreateContext(SECONDARY_THREAD)){return res;}
-	if(!Renderer.SelectContext(SECONDARY_THREAD)){return res;}	
-	Renderer.InitContext(SECONDARY_THREAD);
+	Renderer.CreateSecondaryContext();
 
 	char *in  = pJobData->InputFiles;
 	char *out = pJobData->OutputFiles;
@@ -198,8 +184,7 @@ DWORD WINAPI JobThread(void *params)
 		}
 	}
 
-	Renderer.SelectContext(SECONDARY_THREAD);
-	Renderer.DeleteContext(SECONDARY_THREAD);
+	Renderer.DeleteSecondaryContext();
 
 	PostJobDoneMsg(JobCanceled);
 	#endif

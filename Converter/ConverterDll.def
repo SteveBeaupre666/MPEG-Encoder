@@ -2,8 +2,8 @@ EXPORTS
 	_SetHandle			@1
 	_InitializeOpenGL	@2
 	_CleanupOpenGL		@3
-	_Render				@4
-	_SetClearColor		@5
+	_SetBgColor			@4
+	_Render				@5
 	_StartJob			@6
 	_IsJobRunning		@7	
 	_CancelJob			@8	

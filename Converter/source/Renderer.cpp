@@ -21,20 +21,20 @@ CRenderer::~CRenderer()
 //-----------------------------------------------------------------------------
 void CRenderer::Reset()
 {
+	hDC    = NULL;
 	hWnd   = NULL;
-	hDC[0] = NULL;
-	hDC[1] = NULL;
+
 	hRC[0] = NULL;
 	hRC[1] = NULL;
-
-	CurrentContext = 0;
 
 	WndWidth  = 0;
 	WndHeight = 0;
 
-	ResetTextureData();
+	CurrentContext = 0;
 
-	IsOpenGLInitialized = false;
+	ZeroMemory(&BackgroundColor, sizeof(CBackgroundColor));
+
+	ResetTextureData();
 }
 
 //-----------------------------------------------------------------------------
@@ -177,45 +177,88 @@ void CRenderer::SetWindow(HWND h)
 //-----------------------------------------------------------------------------
 // 
 //-----------------------------------------------------------------------------
-void CRenderer::SetDC(int ctx)
+bool CRenderer::CreatePrimaryContext()
 {
-	hDC[ctx] = GetDC(hWnd);
-}
-
-//-----------------------------------------------------------------------------
-// 
-//-----------------------------------------------------------------------------
-bool CRenderer::SetPFD(int ctx)
-{
-	return SetupPixelFormatDescriptor(hDC[ctx]);
-}
-
-//-----------------------------------------------------------------------------
-// 
-//-----------------------------------------------------------------------------
-bool CRenderer::IsValidContext(int ctx)
-{
-	return ctx == 0 || ctx == 1;
-}
-
-//-----------------------------------------------------------------------------
-// 
-//-----------------------------------------------------------------------------
-bool CRenderer::CreateContext(int ctx)
-{
-	if(!IsValidContext(ctx))
+	hDC = GetDC(hWnd);
+	if(!SetupPixelFormatDescriptor(hDC))
 		return false;
 
-	hRC[ctx] = wglCreateContext(hDC[ctx]);
-	return hRC[ctx] != NULL;
+	hRC[PRIMARY_THREAD] = wglCreateContext(hDC);
+	wglMakeCurrent(hDC, hRC[PRIMARY_THREAD]);
+
+	InitOpenGLContext();
+
+	return true;
 }
 
 //-----------------------------------------------------------------------------
 // 
 //-----------------------------------------------------------------------------
-bool CRenderer::SelectContext(int ctx, bool force)
+void CRenderer::DeletePrimaryContext()
 {
-	if(!IsValidContext(ctx))
+	if(hRC[PRIMARY_THREAD]){
+		wglMakeCurrent(NULL, NULL);
+		wglMakeCurrent(hDC, hRC[PRIMARY_THREAD]);
+		wglDeleteContext(hRC[PRIMARY_THREAD]);
+		hRC[PRIMARY_THREAD] = NULL;
+	}
+
+	if(hDC){
+		ReleaseDC(hWnd, hDC);
+		hDC  = NULL;
+		hWnd = NULL;
+	}
+}
+
+//-----------------------------------------------------------------------------
+// 
+//-----------------------------------------------------------------------------
+void CRenderer::CreateSecondaryContext()
+{
+	hRC[SECONDARY_THREAD] = wglCreateContext(hDC);
+	
+	wglMakeCurrent(NULL, NULL);
+	wglMakeCurrent(hDC, hRC[SECONDARY_THREAD]);
+
+	InitOpenGLContext();
+}
+
+//-----------------------------------------------------------------------------
+// 
+//-----------------------------------------------------------------------------
+void CRenderer::DeleteSecondaryContext()
+{
+	if(hRC[SECONDARY_THREAD]){
+		wglMakeCurrent(NULL, NULL);
+		wglMakeCurrent(hDC, hRC[SECONDARY_THREAD]);
+		wglDeleteContext(hRC[SECONDARY_THREAD]);
+		hRC[SECONDARY_THREAD] = NULL;
+	}
+}
+
+
+//-----------------------------------------------------------------------------
+// 
+//-----------------------------------------------------------------------------
+/*bool CRenderer::SetPFD()
+{
+	return SetupPixelFormatDescriptor(hDC);
+}*/
+
+//-----------------------------------------------------------------------------
+// 
+//-----------------------------------------------------------------------------
+bool CRenderer::IsContextValid(int ctx)
+{
+	return ctx == PRIMARY_THREAD || ctx == SECONDARY_THREAD;
+}
+
+//-----------------------------------------------------------------------------
+// 
+//-----------------------------------------------------------------------------
+bool CRenderer::SelectContext(int ctx)
+{
+	if(!IsContextValid(ctx))
 		return false;
 
 	// Avoid switching context continually
@@ -225,7 +268,7 @@ bool CRenderer::SelectContext(int ctx, bool force)
 		CurrentContext = ctx;
 		wglMakeCurrent(NULL, NULL);
 		
-		res = wglMakeCurrent(hDC[ctx], hRC[ctx]);
+		res = wglMakeCurrent(hDC, hRC[ctx]);
 	}
 
 	return res == TRUE;
@@ -234,13 +277,10 @@ bool CRenderer::SelectContext(int ctx, bool force)
 //-----------------------------------------------------------------------------
 // 
 //-----------------------------------------------------------------------------
-void CRenderer::InitContext(int ctx)
+void CRenderer::InitOpenGLContext()
 {
-	if(!IsValidContext(ctx))
-		return;
-
 	glColor3f(1.0f, 1.0f, 1.0f);                          // Current Color
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);                 // Black Background
+	glClearColor(0.2f, 0.2f, 0.2f, 0.0f);                 // Black Background
 	glClear(GL_CLEAR_FLAGS);                              // Clear frame buffer
 	glClearDepth(1.0f);									  // Depth Buffer Setup
 
@@ -255,27 +295,6 @@ void CRenderer::InitContext(int ctx)
 	glEnable(GL_TEXTURE_2D);                              // Enable texture mapping
 	glDisable(GL_LIGHTING);                               // Disable depth testing
 	glDisable(GL_DEPTH_TEST);                             // Disable lighting
-
-	//glPixelStorei(GL_UNPACK_ALIGNMENT, 1);              // Set the texture alligment
-}
-
-//-----------------------------------------------------------------------------
-// 
-//-----------------------------------------------------------------------------
-void CRenderer::DeleteContext(int ctx)
-{
-	if(!IsValidContext(ctx))
-		return;
-
-	if(hRC[ctx]){
-		wglDeleteContext(hRC[ctx]);
-		hRC[ctx] = NULL;
-	}
-
-	if(hDC[ctx]){
-		ReleaseDC(hWnd, hDC[ctx]);
-		hDC[ctx] = NULL;
-	}
 }
 
 //-----------------------------------------------------------------------------
@@ -433,7 +452,19 @@ void CRenderer::Set2DMode()
 //-----------------------------------------------------------------------------
 void CRenderer::SetBackgroundColor(float r, float g, float b, float a)
 {
-	glClearColor(r, g, b, a);
+	BackgroundColor.r = r;
+	BackgroundColor.g = g;
+	BackgroundColor.b = b;
+	BackgroundColor.a = a;
+}
+
+//-----------------------------------------------------------------------------
+// Set the color of the background...
+//-----------------------------------------------------------------------------
+void CRenderer::SetClearColor()
+{
+	static const CBackgroundColor *bc = &BackgroundColor;
+	glClearColor(bc->r, bc->g, bc->b, bc->a);
 }
 
 //-----------------------------------------------------------------------------
@@ -510,20 +541,15 @@ void CRenderer::DrawQuad()
 //-----------------------------------------------------------------------------
 // Render the frame
 //-----------------------------------------------------------------------------
-void CRenderer::Render(int ctx, bool clear)
+void CRenderer::Render()
 {
-	if(!IsValidContext(ctx))
-		return;
-
-	SelectContext(ctx, false);
-
+	SetClearColor();
 	glClear(GL_CLEAR_FLAGS);
 	glColor3f(1.0f, 1.0f, 1.0f);
 
 	Set2DMode();
-	
-	if(TexID && !clear)
+	if(TexID)
 		DrawQuad();
 
-	SwapBuffers(hDC[CurrentContext]);
+	SwapBuffers(hDC);
 }

@@ -24,12 +24,16 @@ typedef BOOL (APIENTRY *PFVSYNC)(int);
 
 #define GL_CLEAR_FLAGS	(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
 
+struct CBackgroundColor {
+	float r,g,b,a;
+};
+
 class CRenderer {
 public:
 	CRenderer();
 	~CRenderer();
 protected:
-	HDC   hDC[2];
+	HDC   hDC;
 	HGLRC hRC[2];
 	int   CurrentContext;
 private:
@@ -48,11 +52,11 @@ private:
 	UINT BufWidth;
 	UINT BufHeight;
 
-	CTextureBuffer TextureBuffer;
+	CTextureBuffer   TextureBuffer;
+	CBackgroundColor BackgroundColor;
 private:
 	void Reset();
 	void ResetTextureData();
-	bool IsOpenGLInitialized;
 
 	bool CheckExtension(char *extName);
 	bool CheckVersion(int MajVer, int MinVer);
@@ -64,31 +68,32 @@ private:
 	UINT GetTextureFormat(UINT bpp);
 	bool IsTextureFormatValid(UINT bpp);
 
+	void SetClearColor();
 	void Set2DMode();
 	void DrawQuad();
 public:
+	//void SetWindow(HWND h);
+	//void ReleaseDeviceContext();
+	
+	bool IsContextValid(int ctx);
+	bool SelectContext(int ctx);
+	
+	void InitOpenGLContext();
+
 	void SetWindow(HWND h);
-	
-	void SetDC(int ctx);
 
-	bool SetPFD(int ctx);
-	
-	bool IsValidContext(int ctx);
-	bool CreateContext(int ctx);
-	bool SelectContext(int ctx, bool force = true);
-	void InitContext(int ctx);
-	void DeleteContext(int ctx);
-
-	//bool IsInitialized();
-	//bool Initialize(HWND hwnd);
-	//void Shutdown();
+	bool CreatePrimaryContext();
+	void DeletePrimaryContext();
+	void CreateSecondaryContext();
+	void DeleteSecondaryContext();
 
 	bool CreateTexture(UINT w, UINT h, UINT bpp);
 	void UpdateTexture(BYTE *pY, BYTE *pU, BYTE *pV);
 	void DeleteTexture();
 
 	void SetBackgroundColor(float r, float g, float b, float a = 0.0f);
-	void Render(int ctx, bool clear = false);
+	
+	void Render();
 };
 
 

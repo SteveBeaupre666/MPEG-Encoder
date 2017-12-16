@@ -1,4 +1,6 @@
--Fixer le bug en multithreaded qui fait que le 1er contexte marche pas (peut etre le hDC)
+-faire du code pour checker les pointeurs de fonctions de la dll
+
+-Fixer le bug en multithreaded qui fait que le 1er contexte marche pas (peut etre le hDC) (ok)
 
 -Ajouter une critical section (au lieu d'une variable static) pour l'update vu que cé multithreader
 

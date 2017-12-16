@@ -33,8 +33,9 @@ void EXP_FUNC _SetHandle(HWND hWnd);
 BOOL EXP_FUNC _InitializeOpenGL(HWND hWnd);
 void EXP_FUNC _CleanupOpenGL();
 
+void EXP_FUNC _SetBgColor(float r, float g, float b);
+
 void EXP_FUNC _Render();
-void EXP_FUNC _SetClearColor(float r, float g, float b);
 
 void EXP_FUNC _StartJob(int files_count, char *input_files, char *output_files);
 BOOL EXP_FUNC _IsJobRunning();

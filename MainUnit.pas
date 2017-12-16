@@ -37,8 +37,8 @@ type
   TSetHandle        = procedure(h: HWND); stdcall;
   TInitializeOpenGL = function(h: HWND): BOOL; stdcall;
   TCleanupOpenGL    = procedure(); stdcall;
+  TSetBgColor       = procedure(r, g, b: Single); stdcall;
   TRender           = procedure(); stdcall;
-  TSetClearColor    = procedure(r, g, b: Single); stdcall;
   TStartJob         = procedure(files_count: Integer; input_fname, output_fname: PCHAR); stdcall;
   TIsJobRunning     = function(): BOOL; stdcall;
   TCancelJob        = procedure(); stdcall;
@@ -82,8 +82,8 @@ type
     InitializeOpenGL: TInitializeOpenGL;
     CleanupOpenGL:    TCleanupOpenGL;
     StartJob:         TStartJob;
+    SetBgColor:       TSetBgColor;
     Render:           TRender;
-    SetClearColor:    TSetClearColor;
     IsJobRunning:     TIsJobRunning;
     CancelJob:        TCancelJob;
     ConvertVideo:     TConvertVideo;
@@ -142,8 +142,8 @@ if(hDll <> 0) then begin
   @InitializeOpenGL := GetProcAddress(hDll, '_InitializeOpenGL');
   @CleanupOpenGL    := GetProcAddress(hDll, '_CleanupOpenGL');
   @StartJob         := GetProcAddress(hDll, '_StartJob');
+  @SetBgColor       := GetProcAddress(hDll, '_SetBgColor');
   @Render           := GetProcAddress(hDll, '_Render');
-  @SetClearColor    := GetProcAddress(hDll, '_SetClearColor');
   @IsJobRunning     := GetProcAddress(hDll, '_IsJobRunning');
   @CancelJob        := GetProcAddress(hDll, '_CancelJob');
   @ConvertVideo     := GetProcAddress(hDll, '_ConvertVideo');
@@ -156,7 +156,7 @@ LoadSettings();
 
 SetHandle(Self.Handle);
 InitializeOpenGL(RenderWindow.Handle);
-SetClearColor(0.2, 0.2, 0.2);
+SetBgColor(0.2, 0.2, 0.2);
 end;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -313,13 +313,15 @@ var
  InputFiles:     String;
  OutputFiles:    String;
 begin
+FilesCount := FilesListBox.Items.Count;
+if(FilesCount = 0) then
+  exit;
+
 EnableUI(False);
 ResetProgress();
 
 InputFiles  := '';
 OutputFiles := '';
-
-FilesCount := FilesListBox.Items.Count;
 
 for i := 0 to FilesCount-1 do begin
 
