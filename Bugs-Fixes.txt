@@ -1,31 +1,23 @@
--faire du code pour checker les pointeurs de fonctions de la dll
-
--Fixer le bug en multithreaded qui fait que le 1er contexte marche pas (peut etre le hDC) (ok)
-
--Ajouter une critical section (au lieu d'une variable static) pour l'update vu que cé multithreader
-
+*** EASY ***
 -Convert/Cancel button fix
+-updater le texte de la main form
+-updater le nb de fichiers faites
+-frames per seconds
+-time per frame <-- (pas sur)
 
+*** GUI ***
 -drag n drop
+-faire la fenetre de conversion a part
+-pouvoir changer les settings dans une dialog
+-ajouter une option pour multithreader ou pas
+-faire une fenetre d'output pour ecrire les erreurs whatever...
 
+*** BORING ***
 -faire une classe CFileName et CFilesList
-
 -faire une classe pour gerer les 2 contexts d'opengl (ou réecrire la classe "from scratch")
 
--updater le texte de la main form
-
--updater le nb de fichiers faites
-
--avoir une fenetre pour printer les erreurs ect...
-
--frames per seconds / time per frame (?)
-
--fenetre de conversion a part
-
--pouvoir changer les settings
-
--ajouter une option pour multithreader ou pas
-
--fenetre de settings
-
+*** HARD ***
+-Ajouter une critical section pour les messages d'update
+-faire du code pour checker les pointeurs de fonctions de la dll
 -pourvoir pre-scanner le fichier (nb de frames, ect...)
+
