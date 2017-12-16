@@ -1,28 +1,7 @@
-  -Add a scissor test to cut the unused black texture parts.
-  -Calculate the elapsed time remaining for files and job.
-  -Add a function that just dig the file for info.
-  -Thread the convert function (C++ size).
-  -Create a 'Threaded Job object with a FilesList object.
+-Create a FilesList object.
 
-/////////////////////////////////////////////////////////////////
+-faire un menu de settings
 
-fixer le code pour quand on ferme le prog pendant qui encode
+-faire une fonction pour pouvoir changer les settings de l'encoder
 
-fixer le code de render pour qui s'ajuste a grosseur le la fenetre
-
-faire des fonctons pour la gui
-
-faire une fonction pour pouvoir changer le bitrate, pis aligner sur 16 bytes
-
-faire une fonction pour pouvoir changer le bitrate
-
-faire le code pour estimer le temp qui reste par fichier pis par job
-
-ajouter une fonction dans dll pour pre-scanner le fichier (pour avoir le nb de frames)
-
-threader la dll (pas sur)
-
-
-
-Time left formula:
-  (avg time per tick * (1 / percent done)
+-pourvoir pre-scanner le fichier (nb de frames, ect...)
