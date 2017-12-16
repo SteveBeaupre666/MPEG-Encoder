@@ -1,7 +1,0 @@
--Create a FilesList object.
-
--faire un menu de settings
-
--faire une fonction pour pouvoir changer les settings de l'encoder
-
--pourvoir pre-scanner le fichier (nb de frames, ect...)

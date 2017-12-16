@@ -1,0 +1,29 @@
+-Fixer le bug en multithreaded qui fait que le 1er contexte marche pas (peut etre le hDC)
+
+-Ajouter une critical section (au lieu d'une variable static) pour l'update vu que cé multithreader
+
+-Convert/Cancel button fix
+
+-drag n drop
+
+-faire une classe CFileName et CFilesList
+
+-faire une classe pour gerer les 2 contexts d'opengl (ou réecrire la classe "from scratch")
+
+-updater le texte de la main form
+
+-updater le nb de fichiers faites
+
+-avoir une fenetre pour printer les erreurs ect...
+
+-frames per seconds / time per frame (?)
+
+-fenetre de conversion a part
+
+-pouvoir changer les settings
+
+-ajouter une option pour multithreader ou pas
+
+-fenetre de settings
+
+-pourvoir pre-scanner le fichier (nb de frames, ect...)
