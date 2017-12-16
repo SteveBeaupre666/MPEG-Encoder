@@ -1,8 +1,0 @@
-EXPORTS
-	_SetHandles			@1
-	_ConvertVideo		@2
-	_StartJob			@3
-	_IsJobRunning		@4	
-	_CancelJob			@5	
-	_InitializeOpenGL	@6	
-	_CleanupOpenGL		@7	

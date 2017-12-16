@@ -4,9 +4,9 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Gauges, ExtCtrls, ComCtrls, ProgressTimerUnit;
+  Dialogs, StdCtrls, Gauges, ExtCtrls, ComCtrls;
 
-  //{$define MULTI_THREADED}
+  {$define MULTI_THREADED}
 
 const
   JOB_CANCELED = $00000001;
@@ -91,11 +91,6 @@ type
     AppDir: String;
     SettingsFileName: String;
 
-    //RenderWndDC: HDC;
-
-    Timer: TProgressTimer;
-    //StartTime: DWORD;
-
     function  GetAppDir(): String;
 
     function  ChangeExtention(Name, Ext: String): String;
@@ -139,7 +134,7 @@ begin
 ResetStatusBar();
 
 AppDir := GetAppDir();
-SettingsFileName := AppDir + 'Settings.txt';
+SettingsFileName := AppDir + 'Settings.bin';
 
 hDll := LoadLibrary(PCHAR(DllName));
 if(hDll <> 0) then begin
@@ -310,8 +305,6 @@ end;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 procedure TMainForm.ConvertMultiThreaded();
-const
- ErrorMsgSize = 1024;
 var
  i, FilesCount:  Integer;
  InputFileName:  String;
@@ -321,6 +314,7 @@ var
  OutputFiles:    String;
 begin
 EnableUI(False);
+ResetProgress();
 
 InputFiles  := '';
 OutputFiles := '';
@@ -409,7 +403,7 @@ end;
 procedure TMainForm.OnThreadTerminated(var Msg: TMessage);
 begin
 EnableUI(True);
-RenderWindow.Refresh();
+//RenderWindow.Refresh();
 end;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -426,15 +420,6 @@ procedure TMainForm.OnFileProgress(var Msg: TWMFileProgress);
 var
  s: String;
 begin
-//if(Msg.NumFrames > 0) then begin
-  //ElapsedTime := (GetTickCount() - StartTime) / 1000.0;
-  //Done := Msg.Frame / Msg.NumFrames;
-  //ReminingTime := ElapsedTime * (1.0 - Done);
-//end;
-
-//z := ReminingTime;
-//UpdateFileProgress(Msg., Msg.NumFrames);
-
 FileProgressGauge.Progress := Msg.Info.FrameNumber;
 FileProgressGauge.MaxValue := Msg.Info.FramesCount;
 
@@ -453,11 +438,11 @@ end;
 
 procedure TMainForm.UpdateFileProgress(Frame, NumFrames: Integer);
 begin
-FileProgressGauge.Progress := Frame;
-FileProgressGauge.MaxValue := NumFrames;
-StatusBar.Panels[0].Text := 'Frame #: '      + IntToStr(Frame);
-StatusBar.Panels[1].Text := 'Frames Count: ' + IntToStr(NumFrames);
-Application.ProcessMessages;
+//FileProgressGauge.Progress := Frame;
+//FileProgressGauge.MaxValue := NumFrames;
+//StatusBar.Panels[0].Text := 'Frame #: '      + IntToStr(Frame);
+//StatusBar.Panels[1].Text := 'Frames Count: ' + IntToStr(NumFrames);
+//Application.ProcessMessages;
 end;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

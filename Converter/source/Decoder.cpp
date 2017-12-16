@@ -60,7 +60,6 @@ void CDecoder::Cleanup()
 {
 	CleanupDecoder();
 	CleanupEncoder();
-	CleanupRenderer();
 	Reset();
 }
 
@@ -106,14 +105,6 @@ void CDecoder::CleanupEncoder()
 		pEncoder->CloseOutputFile();
 		pEncoder->Cleanup();
 		pEncoder = NULL;
-	}
-}
-
-void CDecoder::CleanupRenderer()
-{
-	if(pRenderer){
-		pRenderer->DeleteTexture();
-		pRenderer = NULL;
 	}
 }
 
@@ -300,12 +291,11 @@ void CDecoder::ScaleFrame()
 	sws_scale(convert_ctx, src_frame->data, src_frame->linesize, 0, src_height, dst_frame->data, dst_frame->linesize);
 }
 
-void CDecoder::RenderFrame(bool clear)
+void CDecoder::RenderFrame()
 {
 	if(pRenderer){
-		if(!clear)
-			pRenderer->UpdateTexture(pY, pU, pV);
-		pRenderer->Render(clear);
+		pRenderer->UpdateTexture(pY, pU, pV);
+		pRenderer->Render(SECONDARY_THREAD);
 	}
 }
 
@@ -356,15 +346,15 @@ void CDecoder::UpdateProgress(int cur_frame, int num_frames)
 	if(num_frames <= 0 || cur_frame > num_frames)
 		cur_frame = num_frames = 0;
 
-	CProgressInfo Info;
+	static CProgressInfo Info;
 	Info.FrameNumber      = cur_frame;
 	Info.FramesCount      = num_frames;
 	Info.RemainingTime    = RemainingTime;
 	Info.AvgTimePerFrames = AvgTimePerFrames;
 	Info.FramesPerSeconds = frames_per_seconds;
 
-	// NOTE: Use post message if multithreaded instead...
-	SendMessage(hMainWnd, WM_UPDATE_FILE_PROGRESS, (WPARAM)(DWORD)&Info, 0);
+	//SendMessage(hMainWnd, WM_UPDATE_FILE_PROGRESS, (WPARAM)(DWORD)&Info, 0);
+	PostMessage(hMainWnd, WM_UPDATE_FILE_PROGRESS, (WPARAM)(DWORD)&Info, 0);
 }
 
 bool CDecoder::InitDecoder(char *in, char *out)
@@ -400,12 +390,7 @@ bool CDecoder::InitDecoder(char *in, char *out)
 
 	SetupFrameBuffer();
 	GetConvertContext();
-
-	if(!InitEncoder(out))
-		return false;
-
-	if(!InitRenderer())
-		return false;
+	InitPacket();
 
 	return true;
 }
@@ -415,16 +400,6 @@ bool CDecoder::InitEncoder(char *out)
 	if(pEncoder){
 		if(!pEncoder->InitEncoder(out))
 			return false;
-	}
-
-	return true;
-}
-
-bool CDecoder::InitRenderer()
-{
-	if(pRenderer){
-		if(!pRenderer->IsInitialized() || !pRenderer->CreateTexture(dst_width, dst_height, 4))
-			return false;	
 	}
 
 	return true;
@@ -444,7 +419,7 @@ void CDecoder::ProcessMessages()
 	}
 }
 
-UINT CDecoder::DecodeVideo(char *in, char *out, CEncoder *encoder, CRenderer *renderer, HWND hWnd)
+UINT CDecoder::DecodeVideo(char *in, char *out, HWND hWnd, CEncoder *encoder, CRenderer *renderer, CThread *thread)
 {
 	Converting = TRUE;
 	Abort      = FALSE;
@@ -460,28 +435,44 @@ UINT CDecoder::DecodeVideo(char *in, char *out, CEncoder *encoder, CRenderer *re
 	if(!InitDecoder(in, out))
 		goto cleanup;
 
+	if(!InitEncoder(out))
+		goto cleanup;
+
+	if(pRenderer){
+		if(!pRenderer->CreateTexture(dst_width, dst_height, 4))
+			goto cleanup;
+	}
+
 	frame = 0;
 	frames_count = GetFramesCount();
 
 	Timer.Reset();
 	ZeroMemory(&ElapsedTime[0], sizeof(float) * MAX_TIMES_SAMPLES);
 
-	InitPacket();
-
 	while(ReadFrame()){
 
 		if(IsVideoStream()){
 
+			#ifndef MULTI_THREADED
 			if(Abort){
 				res = JOB_CANCELED;
-				goto cleanup;
+				goto cleanup;			
 			}
+			#else
+			if(thread && thread->Aborted()){
+				res = JOB_CANCELED;
+				goto cleanup;			
+			}
+			#endif
 
 			if(!DecodeChunk())
 				goto cleanup;
 
-			if(got_frame)
+			if(got_frame){
 				ProcessFrame();
+				//Sleep(1000);
+				//goto cleanup;
+			}
 		}
 		
 		FreePacket();
@@ -489,10 +480,17 @@ UINT CDecoder::DecodeVideo(char *in, char *out, CEncoder *encoder, CRenderer *re
 
 	while(1){
 
+		#ifndef MULTI_THREADED
 		if(Abort){
 			res = JOB_CANCELED;
-			goto cleanup;
+			goto cleanup;			
 		}
+		#else
+		if(thread && thread->Aborted()){
+			res = JOB_CANCELED;
+			goto cleanup;			
+		}
+		#endif
 
 		if(!DecodeChunk())
 			goto cleanup;
@@ -509,7 +507,10 @@ UINT CDecoder::DecodeVideo(char *in, char *out, CEncoder *encoder, CRenderer *re
 
 cleanup:
 
-	//RenderFrame(true);
+	if(pRenderer){
+		pRenderer->DeleteTexture();
+		pRenderer->Render(SECONDARY_THREAD, true);
+	}
 
 	if(pEncoder)
 		pEncoder->WriteEndCode();

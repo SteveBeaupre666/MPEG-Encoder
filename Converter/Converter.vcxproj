@@ -43,7 +43,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;MULTI_THREADED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>.\ffmpeg\include;.\source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -62,7 +62,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;MULTI_THREADED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>.\ffmpeg\include;.\source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -83,11 +83,14 @@
     <ClInclude Include="source\ColorConversion.h" />
     <ClInclude Include="source\Decoder.h" />
     <ClInclude Include="source\Encoder.h" />
+    <ClInclude Include="source\ffmpeg.h" />
     <ClInclude Include="source\FileIO.h" />
     <ClInclude Include="source\Rectangle.h" />
     <ClInclude Include="source\Renderer.h" />
+    <ClInclude Include="source\SafeKill.h" />
     <ClInclude Include="source\TextureBuffer.h" />
     <ClInclude Include="source\Thread.h" />
+    <ClInclude Include="source\ThreadLock.h" />
     <ClInclude Include="source\Timer.h" />
   </ItemGroup>
   <ItemGroup>
@@ -100,6 +103,7 @@
     <ClCompile Include="source\Renderer.cpp" />
     <ClCompile Include="source\TextureBuffer.cpp" />
     <ClCompile Include="source\Thread.cpp" />
+    <ClCompile Include="source\ThreadLock.cpp" />
     <ClCompile Include="source\Timer.cpp" />
   </ItemGroup>
   <ItemGroup>

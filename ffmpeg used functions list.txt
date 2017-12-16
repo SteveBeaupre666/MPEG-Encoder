@@ -1,0 +1,29 @@
+1>Convert.obj : error LNK2019: unresolved external symbol _avformat_network_init referenced in function "void __cdecl InitDll(void)" (?InitDll@@YAXXZ)
+1>Convert.obj : error LNK2019: unresolved external symbol _av_register_all referenced in function "void __cdecl InitDll(void)" (?InitDll@@YAXXZ)
+1>Decoder.obj : error LNK2019: unresolved external symbol _sws_freeContext referenced in function "public: void __thiscall CDecoder::CleanupDecoder(void)" (?CleanupDecoder@CDecoder@@QAEXXZ)
+1>Decoder.obj : error LNK2019: unresolved external symbol _avformat_close_input referenced in function "public: void __thiscall CDecoder::CleanupDecoder(void)" (?CleanupDecoder@CDecoder@@QAEXXZ)
+1>Decoder.obj : error LNK2019: unresolved external symbol _avcodec_close referenced in function "public: void __thiscall CDecoder::CleanupDecoder(void)" (?CleanupDecoder@CDecoder@@QAEXXZ)
+1>Encoder.obj : error LNK2001: unresolved external symbol _avcodec_close
+1>Decoder.obj : error LNK2019: unresolved external symbol _av_frame_free referenced in function "public: void __thiscall CDecoder::CleanupDecoder(void)" (?CleanupDecoder@CDecoder@@QAEXXZ)
+1>Decoder.obj : error LNK2019: unresolved external symbol _avformat_open_input referenced in function "public: bool __thiscall CDecoder::OpenInputFile(char *)" (?OpenInputFile@CDecoder@@QAE_NPAD@Z)
+1>Decoder.obj : error LNK2019: unresolved external symbol _avformat_alloc_context referenced in function "public: bool __thiscall CDecoder::AllocFormatContext(void)" (?AllocFormatContext@CDecoder@@QAE_NXZ)
+1>Decoder.obj : error LNK2019: unresolved external symbol _sws_getContext referenced in function "public: void __thiscall CDecoder::GetConvertContext(void)" (?GetConvertContext@CDecoder@@QAEXXZ)
+1>Decoder.obj : error LNK2019: unresolved external symbol _avformat_find_stream_info referenced in function "public: bool __thiscall CDecoder::FindStreamInfo(void)" (?FindStreamInfo@CDecoder@@QAE_NXZ)
+1>Decoder.obj : error LNK2019: unresolved external symbol _avcodec_find_decoder referenced in function "public: bool __thiscall CDecoder::FindDecoder(void)" (?FindDecoder@CDecoder@@QAE_NXZ)
+1>Decoder.obj : error LNK2019: unresolved external symbol _avcodec_open2 referenced in function "public: bool __thiscall CDecoder::OpenCodec(void)" (?OpenCodec@CDecoder@@QAE_NXZ)
+1>Encoder.obj : error LNK2001: unresolved external symbol _avcodec_open2
+1>Decoder.obj : error LNK2019: unresolved external symbol _av_frame_alloc referenced in function "public: bool __thiscall CDecoder::AllocFrames(void)" (?AllocFrames@CDecoder@@QAE_NXZ)
+1>Decoder.obj : error LNK2019: unresolved external symbol _av_image_fill_arrays referenced in function "public: void __thiscall CDecoder::SetupFrameBuffer(void)" (?SetupFrameBuffer@CDecoder@@QAEXXZ)
+1>Decoder.obj : error LNK2019: unresolved external symbol _av_init_packet referenced in function "public: void __thiscall CDecoder::InitPacket(void)" (?InitPacket@CDecoder@@QAEXXZ)
+1>Encoder.obj : error LNK2001: unresolved external symbol _av_init_packet
+1>Decoder.obj : error LNK2019: unresolved external symbol _av_free_packet referenced in function "public: void __thiscall CDecoder::FreePacket(void)" (?FreePacket@CDecoder@@QAEXXZ)
+1>Encoder.obj : error LNK2001: unresolved external symbol _av_free_packet
+1>Decoder.obj : error LNK2019: unresolved external symbol _av_read_frame referenced in function "public: bool __thiscall CDecoder::ReadFrame(void)" (?ReadFrame@CDecoder@@QAE_NXZ)
+1>Decoder.obj : error LNK2019: unresolved external symbol _avcodec_decode_video2 referenced in function "public: bool __thiscall CDecoder::DecodeChunk(void)" (?DecodeChunk@CDecoder@@QAE_NXZ)
+1>Decoder.obj : error LNK2019: unresolved external symbol _sws_scale referenced in function "public: void __thiscall CDecoder::ScaleFrame(void)" (?ScaleFrame@CDecoder@@QAEXXZ)
+1>Encoder.obj : error LNK2019: unresolved external symbol _avcodec_find_encoder referenced in function "public: bool __thiscall CEncoder::FindEncoder(void)" (?FindEncoder@CEncoder@@QAE_NXZ)
+1>Encoder.obj : error LNK2019: unresolved external symbol _av_free referenced in function "public: bool __thiscall CEncoder::AllocCodecContext(void)" (?AllocCodecContext@CEncoder@@QAE_NXZ)
+1>Encoder.obj : error LNK2019: unresolved external symbol _avcodec_alloc_context3 referenced in function "public: bool __thiscall CEncoder::AllocCodecContext(void)" (?AllocCodecContext@CEncoder@@QAE_NXZ)
+1>Encoder.obj : error LNK2019: unresolved external symbol _avcodec_encode_video2 referenced in function "public: bool __thiscall CEncoder::EncodeFrame(struct AVFrame *)" (?EncodeFrame@CEncoder@@QAE_NPAUAVFrame@@@Z)
+1>..\Converter.dll : fatal error LNK1120: 23 unresolved externals
+========== Rebuild All: 0 succeeded, 1 failed, 0 skipped ==========

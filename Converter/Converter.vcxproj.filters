@@ -46,6 +46,9 @@
     <ClCompile Include="source\Timer.cpp">
       <Filter>Tools</Filter>
     </ClCompile>
+    <ClCompile Include="source\ThreadLock.cpp">
+      <Filter>Tools</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\Buffer.h">
@@ -79,6 +82,15 @@
       <Filter>OpenGL</Filter>
     </ClInclude>
     <ClInclude Include="source\Timer.h">
+      <Filter>Tools</Filter>
+    </ClInclude>
+    <ClInclude Include="source\ffmpeg.h">
+      <Filter>Tools</Filter>
+    </ClInclude>
+    <ClInclude Include="source\SafeKill.h">
+      <Filter>Tools</Filter>
+    </ClInclude>
+    <ClInclude Include="source\ThreadLock.h">
       <Filter>Tools</Filter>
     </ClInclude>
   </ItemGroup>

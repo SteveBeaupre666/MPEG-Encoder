@@ -9,18 +9,14 @@
 //----------------------------------------------------------------------//
 #include "Buffer.h"
 #include "FileIO.h"
-#include "Thread.h"
 //----------------------------------------------------------------------//
 #include "Decoder.h"
-//----------------------------------------------------------------------//
-//#define MULTI_THREADED
 //----------------------------------------------------------------------//
 
 struct JobDataStruct {
 	int   NumFiles;
 	char *InputFiles;
 	char *OutputFiles;
-	char *ErrorMsg;
 };
 
 //----------------------------------------------------------------------//
@@ -49,6 +45,7 @@ UINT EXP_FUNC _ConvertVideo(char *input_fname, char *output_fname);
 //----------------------------------------------------------------------//
 // Globals Functions
 //----------------------------------------------------------------------//
+void PostJobDoneMsg(bool canceled);
 int  GetFileNameLen(char *fname);
 
 //void UpdateProgress(int frame, int frames_count);

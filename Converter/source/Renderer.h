@@ -17,6 +17,9 @@
 #define BACKGROUND_COLOR 0.10f
 //----------------------------------------------------------------------//
 
+#define PRIMARY_THREAD		0
+#define SECONDARY_THREAD	1
+
 typedef BOOL (APIENTRY *PFVSYNC)(int);
 
 #define GL_CLEAR_FLAGS	(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
@@ -26,10 +29,9 @@ public:
 	CRenderer();
 	~CRenderer();
 protected:
-	HDC   hDC;
-	HGLRC hRC;
-protected:
-	PFVSYNC VSync;
+	HDC   hDC[2];
+	HGLRC hRC[2];
+	int   CurrentContext;
 private:
 	HWND hWnd;
 
@@ -65,16 +67,28 @@ private:
 	void Set2DMode();
 	void DrawQuad();
 public:
-	bool IsInitialized();
-	bool Initialize(HWND hwnd);
-	void Shutdown();
+	void SetWindow(HWND h);
+	
+	void SetDC(int ctx);
+
+	bool SetPFD(int ctx);
+	
+	bool IsValidContext(int ctx);
+	bool CreateContext(int ctx);
+	bool SelectContext(int ctx, bool force = true);
+	void InitContext(int ctx);
+	void DeleteContext(int ctx);
+
+	//bool IsInitialized();
+	//bool Initialize(HWND hwnd);
+	//void Shutdown();
 
 	bool CreateTexture(UINT w, UINT h, UINT bpp);
 	void UpdateTexture(BYTE *pY, BYTE *pU, BYTE *pV);
 	void DeleteTexture();
 
 	void SetBackgroundColor(float r, float g, float b, float a = 0.0f);
-	void Render(bool clear = false);
+	void Render(int ctx, bool clear = false);
 };
 
 

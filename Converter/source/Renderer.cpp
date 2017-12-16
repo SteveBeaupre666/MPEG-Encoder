@@ -13,7 +13,7 @@ CRenderer::CRenderer()
 //-----------------------------------------------------------------------------
 CRenderer::~CRenderer()
 {
-	Shutdown();
+	//Shutdown();
 }
 
 //-----------------------------------------------------------------------------
@@ -21,12 +21,14 @@ CRenderer::~CRenderer()
 //-----------------------------------------------------------------------------
 void CRenderer::Reset()
 {
-	hDC = NULL;
-	hRC = NULL;
+	hWnd   = NULL;
+	hDC[0] = NULL;
+	hDC[1] = NULL;
+	hRC[0] = NULL;
+	hRC[1] = NULL;
 
-	hWnd  = NULL;
-	VSync = NULL;
-	
+	CurrentContext = 0;
+
 	WndWidth  = 0;
 	WndHeight = 0;
 
@@ -115,20 +117,16 @@ bool CRenderer::SetupPixelFormatDescriptor(HDC hdc)
 //-----------------------------------------------------------------------------
 // Return true if OpenGL is initialized
 //-----------------------------------------------------------------------------
-bool CRenderer::IsInitialized()
-{ 
-	return IsOpenGLInitialized;
-}
+//bool CRenderer::IsInitialized()
+//{ 
+//	return IsOpenGLInitialized;
+//}
 
 //-----------------------------------------------------------------------------
 // Initialize OpenGL
 //-----------------------------------------------------------------------------
-bool CRenderer::Initialize(HWND hwnd)
+/*bool CRenderer::Initialize(HWND hwnd)
 {
-	if(IsInitialized())
-		return false;
-
-	//hDC  = hdc;
 	hWnd = hwnd;
 	hDC  = GetDC(hWnd);
 
@@ -139,7 +137,7 @@ bool CRenderer::Initialize(HWND hwnd)
 	}
 
 	hRC = wglCreateContext(hDC);
-	BOOL res = wglMakeCurrent(hDC, hRC);	                        
+	wglMakeCurrent(hDC, hRC);	                        
 
 	///////////////////////////////////////////////////////////////////////////////////////////
 	glColor3f(1.0f, 1.0f, 1.0f);                          // Current Color
@@ -162,42 +160,152 @@ bool CRenderer::Initialize(HWND hwnd)
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);                // Set the texture alligment
 	///////////////////////////////////////////////////////////////////////////////////////////
 
-	if(CheckExtension("WGL_EXT_swap_control")){
-		VSync = (PFVSYNC)wglGetProcAddress("wglSwapIntervalEXT");
-		if(VSync)
-			VSync(!VSync ? 0 : 1);
-	}
-
-	///////////////////////////////////////////////////////////////////////////////////////////
-
 	IsOpenGLInitialized = true;
 	return IsOpenGLInitialized;
+
+	return false;
+}*/
+
+//-----------------------------------------------------------------------------
+// 
+//-----------------------------------------------------------------------------
+void CRenderer::SetWindow(HWND h)
+{
+	hWnd = h;
+}
+
+//-----------------------------------------------------------------------------
+// 
+//-----------------------------------------------------------------------------
+void CRenderer::SetDC(int ctx)
+{
+	hDC[ctx] = GetDC(hWnd);
+}
+
+//-----------------------------------------------------------------------------
+// 
+//-----------------------------------------------------------------------------
+bool CRenderer::SetPFD(int ctx)
+{
+	return SetupPixelFormatDescriptor(hDC[ctx]);
+}
+
+//-----------------------------------------------------------------------------
+// 
+//-----------------------------------------------------------------------------
+bool CRenderer::IsValidContext(int ctx)
+{
+	return ctx == 0 || ctx == 1;
+}
+
+//-----------------------------------------------------------------------------
+// 
+//-----------------------------------------------------------------------------
+bool CRenderer::CreateContext(int ctx)
+{
+	if(!IsValidContext(ctx))
+		return false;
+
+	hRC[ctx] = wglCreateContext(hDC[ctx]);
+	return hRC[ctx] != NULL;
+}
+
+//-----------------------------------------------------------------------------
+// 
+//-----------------------------------------------------------------------------
+bool CRenderer::SelectContext(int ctx, bool force)
+{
+	if(!IsValidContext(ctx))
+		return false;
+
+	// Avoid switching context continually
+	BOOL res = FALSE;
+	if(CurrentContext != ctx){
+		
+		CurrentContext = ctx;
+		wglMakeCurrent(NULL, NULL);
+		
+		res = wglMakeCurrent(hDC[ctx], hRC[ctx]);
+	}
+
+	return res == TRUE;
+}
+
+//-----------------------------------------------------------------------------
+// 
+//-----------------------------------------------------------------------------
+void CRenderer::InitContext(int ctx)
+{
+	if(!IsValidContext(ctx))
+		return;
+
+	glColor3f(1.0f, 1.0f, 1.0f);                          // Current Color
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);                 // Black Background
+	glClear(GL_CLEAR_FLAGS);                              // Clear frame buffer
+	glClearDepth(1.0f);									  // Depth Buffer Setup
+
+	glEnable(GL_LINE_SMOOTH);						      // Enables Depth Testing
+	glShadeModel(GL_SMOOTH);                              // Enable Smooth Shading
+	glDepthFunc(GL_LEQUAL);							      // The Type Of Depth Testing To Do
+	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);    // Really Nice Perspective Calculations
+	glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);			  // Really Nice Perspective Calculations
+	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);				  // Really Nice Perspective Calculations
+	glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);			  // Really Nice Perspective Calculations
+
+	glEnable(GL_TEXTURE_2D);                              // Enable texture mapping
+	glDisable(GL_LIGHTING);                               // Disable depth testing
+	glDisable(GL_DEPTH_TEST);                             // Disable lighting
+
+	//glPixelStorei(GL_UNPACK_ALIGNMENT, 1);              // Set the texture alligment
+}
+
+//-----------------------------------------------------------------------------
+// 
+//-----------------------------------------------------------------------------
+void CRenderer::DeleteContext(int ctx)
+{
+	if(!IsValidContext(ctx))
+		return;
+
+	if(hRC[ctx]){
+		wglDeleteContext(hRC[ctx]);
+		hRC[ctx] = NULL;
+	}
+
+	if(hDC[ctx]){
+		ReleaseDC(hWnd, hDC[ctx]);
+		hDC[ctx] = NULL;
+	}
 }
 
 //-----------------------------------------------------------------------------
 // Shutdown OpenGL
 //-----------------------------------------------------------------------------
-void CRenderer::Shutdown()
+/*void CRenderer::Shutdown()
 {
-	if(!IsInitialized())
-		return;
-
-	DeleteTexture();
-	TextureBuffer.Free();
-
-	if(hRC){
-		//wglMakeCurrent(NULL, NULL);	                        
-		wglDeleteContext(hRC);
-		hRC = NULL;
+	if(hRC[1]){
+		DeleteTexture();
+		wglDeleteContext(hRC[1]);
+		hRC[1] = NULL;
 	}
 
-	if(hDC){
-		ReleaseDC(hWnd, hDC);
-		hDC = NULL;
+	if(hRC[0]){
+		wglDeleteContext(hRC[0]);
+		hRC[0] = NULL;
+	}
+
+	if(hDC[1]){
+		ReleaseDC(hWnd, hDC[1]);
+		hDC[1] = NULL;
+	}
+	
+	if(hDC[0]){
+		ReleaseDC(hWnd, hDC[0]);
+		hDC[0] = NULL;
 	}
 	
 	Reset();
-}
+}*/
 
 //-----------------------------------------------------------------------------
 // Return the opengl texture format from the number of bytes per pixels
@@ -227,9 +335,6 @@ bool CRenderer::IsTextureFormatValid(UINT bpp)
 //-----------------------------------------------------------------------------
 bool CRenderer::CreateTexture(UINT w, UINT h, UINT bpp)
 {
-	if(!IsInitialized())
-		return false;
-
 	DeleteTexture();
 
 	if(!IsTextureFormatValid(bpp))
@@ -272,11 +377,10 @@ bool CRenderer::CreateTexture(UINT w, UINT h, UINT bpp)
 //-----------------------------------------------------------------------------
 void CRenderer::UpdateTexture(BYTE *pY, BYTE *pU, BYTE *pV)
 {
-	if(!IsInitialized())
-		return;
-
-	yuv420p_to_rgb(pY, pU, pV, buf, TexWidth, TexHeight, BufWidth, BufBPP);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, BufWidth, BufHeight, TexFormat, GL_UNSIGNED_BYTE, buf);
+	if(TexID){
+		yuv420p_to_rgb(pY, pU, pV, buf, TexWidth, TexHeight, BufWidth, BufBPP);
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, BufWidth, BufHeight, TexFormat, GL_UNSIGNED_BYTE, buf);
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -284,9 +388,6 @@ void CRenderer::UpdateTexture(BYTE *pY, BYTE *pU, BYTE *pV)
 //-----------------------------------------------------------------------------
 void CRenderer::DeleteTexture()
 {
-	if(!IsInitialized())
-		return;
-
 	TextureBuffer.Free();
 
 	if(TexID)
@@ -332,9 +433,6 @@ void CRenderer::Set2DMode()
 //-----------------------------------------------------------------------------
 void CRenderer::SetBackgroundColor(float r, float g, float b, float a)
 {
-	if(!IsInitialized())
-		return;
-
 	glClearColor(r, g, b, a);
 }
 
@@ -412,10 +510,12 @@ void CRenderer::DrawQuad()
 //-----------------------------------------------------------------------------
 // Render the frame
 //-----------------------------------------------------------------------------
-void CRenderer::Render(bool clear)
+void CRenderer::Render(int ctx, bool clear)
 {
-	if(!IsInitialized())
+	if(!IsValidContext(ctx))
 		return;
+
+	SelectContext(ctx, false);
 
 	glClear(GL_CLEAR_FLAGS);
 	glColor3f(1.0f, 1.0f, 1.0f);
@@ -425,5 +525,5 @@ void CRenderer::Render(bool clear)
 	if(TexID && !clear)
 		DrawQuad();
 
-	SwapBuffers(hDC);
+	SwapBuffers(hDC[CurrentContext]);
 }

@@ -3,8 +3,7 @@ program MPEGEncoder;
 uses
   Forms,
   MainUnit in 'MainUnit.pas' {MainForm},
-  OpenDirectoryUnit in 'OpenDirectoryUnit.pas' {OpenDirectoryForm},
-  ProgressTimerUnit in 'ProgressTimerUnit.pas';
+  OpenDirectoryUnit in 'OpenDirectoryUnit.pas' {OpenDirectoryForm};
 
 {$R *.res}
 

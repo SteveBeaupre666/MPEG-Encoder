@@ -7,6 +7,7 @@
 //----------------------------------------------------------------------//
 #include "Timer.h"
 #include "Buffer.h"
+#include "Thread.h"
 #include "Encoder.h"
 #include "SafeKill.h"
 //----------------------------------------------------------------------//
@@ -19,7 +20,7 @@
 #define UNKNOW_ERROR	0xFFFFFFFF
 //----------------------------------------------------------------------//
 #define WM_UPDATE_FILE_PROGRESS		WM_USER + 101
-#define WM_THREAD_TERMINATED		WM_USER + 103
+#define WM_THREAD_TERMINATED		WM_USER + 102
 //----------------------------------------------------------------------//
 
 struct CProgressInfo {
@@ -119,7 +120,7 @@ public:
 
 	bool ReadFrame();
 	void ScaleFrame();
-	void RenderFrame(bool clear = false);
+	void RenderFrame();
 	void ProcessFrame();
 
 	bool DecodeChunk();
@@ -136,13 +137,11 @@ public:
 
 	bool InitDecoder(char *in, char *out);
 	bool InitEncoder(char *out);
-	bool InitRenderer();
 
-	UINT DecodeVideo(char *in, char *out, CEncoder *encoder, CRenderer *renderer, HWND hWnd);
+	UINT DecodeVideo(char *in, char *out, HWND hWnd, CEncoder *encoder, CRenderer *renderer, CThread *thread);
 
 	void CleanupDecoder();
 	void CleanupEncoder();
-	void CleanupRenderer();
 
 	void Cleanup();
 };
