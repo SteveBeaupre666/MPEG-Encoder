@@ -4,7 +4,8 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Gauges, ExtCtrls, ComCtrls;
+  Dialogs, StdCtrls, Gauges, ExtCtrls, ComCtrls,
+  OpenDirectoryUnit, RenderUnit;
 
   {$define MULTI_THREADED}
 
@@ -13,26 +14,10 @@ const
   JOB_SUCCEDED = $00000000;
   UNKNOW_ERROR = $FFFFFFFF;
 
-  WM_UPDATE_FILE_PROGRESS = WM_USER + 101;
-  WM_THREAD_TERMINATED    = WM_USER + 102;
+  //WM_UPDATE_FILE_PROGRESS = WM_USER + 101;
+  //WM_THREAD_TERMINATED    = WM_USER + 102;
 
 type
-
-  TProgressInfo = record
-    FrameNumber:      Integer;
-    FramesCount:      Integer;
-    FramesPerSeconds: Integer;
-    AvgTimePerFrames: Single;
-    RemainingTime:    Single;
-  end;
-  ProgressInfoPtr = ^TProgressInfo;
-
-  TWMFileProgress = packed record
-    Msg:       Cardinal;
-    Info:      ProgressInfoPtr;
-    dummy:     Integer;
-    Result:    Longint;
-  end;
 
   TSetHandle        = procedure(h: HWND); stdcall;
   TInitializeOpenGL = function(h: HWND): BOOL; stdcall;
@@ -53,15 +38,7 @@ type
     EditOutputFolder: TEdit;
     Label1: TLabel;
     ButtonBrowse: TButton;
-    RenderPanel: TPanel;
     ButtonConvert: TButton;
-    FileProgressGauge: TGauge;
-    TotalProgressGauge: TGauge;
-    CheckBoxRender: TCheckBox;
-    StatusBar: TStatusBar;
-    RenderWindow: TPanel;
-    ButtonCancel: TButton;
-    RenderTimer: TTimer;
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure ButtonAddClick(Sender: TObject);
@@ -71,7 +48,6 @@ type
     procedure ButtonConvertClick(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure ButtonCancelClick(Sender: TObject);
-    procedure RenderTimerTimer(Sender: TObject);
   private
     { Private declarations }
   public
@@ -91,35 +67,38 @@ type
     AppDir: String;
     SettingsFileName: String;
 
+    RenderForm: TRenderForm;
+
     function  GetAppDir(): String;
 
-    function  ChangeExtention(Name, Ext: String): String;
+    procedure LoadSettings();
+    procedure SaveSettings();
+
     function  FixPath(path: String): String;
+    function  ChangeFileExtention(Name, Ext: String): String;
 
     procedure EnableUI(IsJobDone: Boolean);
 
     procedure ConvertMultiThreaded();
+    {$ifndef MULTI_THREADED}
     procedure ConvertSingleThreaded();
+    {$endif}
 
-    procedure OnThreadTerminated(var Msg: TMessage); Message WM_THREAD_TERMINATED;
-    procedure OnFileProgress(var Msg: TWMFileProgress); Message WM_UPDATE_FILE_PROGRESS;
+    //procedure ResetProgress();
+    //procedure ResetStatusBar();
 
-    procedure ResetProgress();
-    procedure ResetStatusBar();
+    //procedure OnFileProgress(var Msg: TWMFileProgress); Message WM_UPDATE_FILE_PROGRESS;
+    //procedure OnThreadTerminated(var Msg: TMessage); Message WM_THREAD_TERMINATED;
 
-    procedure UpdateFileProgress(Frame, NumFrames: Integer);
-    procedure UpdateTotalProgress(i, NumFiles: Integer);
+    //procedure UpdateFileProgress(Frame, NumFrames: Integer);
+    //procedure UpdateTotalProgress(i, NumFiles: Integer);
 
-    procedure LoadSettings();
-    procedure SaveSettings();
   end;
 
 var
   MainForm: TMainForm;
 
 implementation
-
-uses OpenDirectoryUnit;
 
 {$R *.dfm}
 
@@ -131,8 +110,6 @@ procedure TMainForm.FormCreate(Sender: TObject);
 const
  DllName = 'Converter.dll';
 begin
-ResetStatusBar();
-
 AppDir := GetAppDir();
 SettingsFileName := AppDir + 'Settings.bin';
 
@@ -154,9 +131,11 @@ end;
 
 LoadSettings();
 
-SetHandle(Self.Handle);
-InitializeOpenGL(RenderWindow.Handle);
-SetBgColor(0.2, 0.2, 0.2);
+RenderForm := TRenderForm.Create(Self);
+
+//SetHandle(Self.Handle);
+//InitializeOpenGL(RenderWindow.Handle);
+//SetBgColor(0.2, 0.2, 0.2);
 end;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -176,6 +155,7 @@ if(hDll <> 0) then begin
   CleanupOpenGL();
   FreeLibrary(hDll);
 end;
+RenderForm.Free;
 end;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -229,18 +209,6 @@ end;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-procedure TMainForm.ResetStatusBar();
-begin
-StatusBar.Panels[0].Text := 'Frame #: N\A';
-StatusBar.Panels[1].Text := 'Frames Count: N\A';
-StatusBar.Panels[2].Text := 'Total Progress: N\A';
-StatusBar.Panels[3].Text := 'Elapsed Time: N\A';
-StatusBar.Panels[4].Text := 'Remaining Time: N\A';
-StatusBar.Panels[5].Text := 'Total remaining Time: N\A';
-end;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 procedure TMainForm.EnableUI(IsJobDone: Boolean);
 begin
 FilesListBox.Enabled     := IsJobDone;
@@ -249,15 +217,12 @@ ButtonRemove.Enabled     := IsJobDone;
 ButtonClear.Enabled      := IsJobDone;
 EditOutputFolder.Enabled := IsJobDone;
 ButtonBrowse.Enabled     := IsJobDone;
-CheckBoxRender.Enabled   := IsJobDone;
 ButtonConvert.Enabled    := IsJobDone;
-RenderTimer.Enabled      := IsJobDone;
-ButtonCancel.Enabled     := not IsJobDone;
 Application.ProcessMessages;
 end;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
+{$ifndef MULTI_THREADED}
 procedure TMainForm.ConvertSingleThreaded();
 var
  res: DWORD;
@@ -301,7 +266,7 @@ ResetStatusBar();
 Self.Caption := 'MPEG Converter';
 EnableUI(True);
 end;
-
+{$endif}
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 procedure TMainForm.ConvertMultiThreaded();
@@ -318,7 +283,6 @@ if(FilesCount = 0) then
   exit;
 
 EnableUI(False);
-ResetProgress();
 
 InputFiles  := '';
 OutputFiles := '';
@@ -346,25 +310,47 @@ end;
 
 procedure TMainForm.ButtonConvertClick(Sender: TObject);
 begin
-{$ifdef MULTI_THREADED}
+//{$ifdef MULTI_THREADED}
+//ConvertMultiThreaded();
+//{$else}
+//ConvertSingleThreaded();
+//{$endif}
+
+// FIX: messages are now posted to the wrong window...
+
+MainForm.Enabled := False;
+Application.ProcessMessages;
+
+RenderForm.ResetProgressBars();
+RenderForm.UpdateStatusBar(nil);
+
+RenderForm.Show;
+Application.ProcessMessages;
+
 ConvertMultiThreaded();
-{$else}
-ConvertSingleThreaded();
-{$endif}
 end;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 procedure TMainForm.ButtonCancelClick(Sender: TObject);
 begin
-CancelJob();
+//CancelJob();
 end;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+{procedure TMainForm.OnThreadTerminated(var Msg: TMessage);
+begin
+RenderForm.Hide;
+EnableUI(True);
+MainForm.Enabled := True;
+end;}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-function TMainForm.ChangeExtention(Name, Ext: String): String;
+function TMainForm.ChangeFileExtention(Name, Ext: String): String;
 var
  NameLen, ExtLen, ExtPos: Integer;
  OldName, OldExt, NewName, NewExt: String;
@@ -402,15 +388,7 @@ end;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-procedure TMainForm.OnThreadTerminated(var Msg: TMessage);
-begin
-EnableUI(True);
-//RenderWindow.Refresh();
-end;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-procedure TMainForm.ResetProgress();
+{procedure TMainForm.ResetProgress();
 begin
 UpdateFileProgress(0, 100);
 UpdateTotalProgress(0, 100);
@@ -455,7 +433,7 @@ TotalProgressGauge.Progress := i;
 TotalProgressGauge.MaxValue := NumFiles;
 StatusBar.Panels[2].Text    := 'Total Progress: ' + IntToStr(i) + ' \ ' + IntToStr(NumFiles);
 Application.ProcessMessages;
-end;
+end;}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -519,16 +497,6 @@ try
 finally
   Lst.Free;
 end;
-end;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-procedure TMainForm.RenderTimerTimer(Sender: TObject);
-begin
-if(not IsJobRunning()) then
-  Render();
 end;
 
 end.
